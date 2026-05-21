@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import org.example.flow.classify.ModeClassifier
@@ -75,7 +76,17 @@ fun FlowApp(
     }
 
     LaunchedEffect(Unit) {
+        // Browser processes whose windows should not participate in mode detection
+        // when the extension is connected (extension handles browser classification)
+        val browserProcesses = setOf("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+
         val windowResults = WindowMonitor.observeActiveWindow()
+            .filter { window ->
+                if (extensionConnected && window.processName.lowercase() in browserProcesses) {
+                    return@filter false
+                }
+                true
+            }
             .map { ModeClassifier.classifyWindow(it) }
         val browserResults = tabServer.messages
             .map { ModeClassifier.classifyBrowser(it) }
