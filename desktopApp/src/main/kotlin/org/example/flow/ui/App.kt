@@ -25,11 +25,17 @@ import org.example.flow.model.Mode
 import org.example.flow.monitor.WindowMonitor
 import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine, notifier: Notifier) {
+fun FlowApp(
+    tabServer: TabServer,
+    reminderEngine: ReminderEngine,
+    notifier: Notifier,
+    extensionDir: File,
+) {
     var activeWindow by remember {
         mutableStateOf(ActiveWindow("(等待采集...)", "(等待采集...)", 0L))
     }
@@ -74,7 +80,7 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine, notifier: Noti
             if (mode != currentMode) {
                 currentMode = mode
                 reminderEngine.onModeChanged(mode)
-                notifier.updateIcon(mode) // 托盘图标变色
+                notifier.updateIcon(mode)
             }
         }
     }
@@ -146,6 +152,11 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine, notifier: Noti
                 }
             }
 
+            // ── 扩展安装引导（仅在扩展未连接时显示） ──
+            if (browserMessage == null) {
+                ExtensionSetupGuide(extensionDir)
+            }
+
             // ── 时间倍速滑块 ──
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -161,7 +172,6 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine, notifier: Noti
                             }
                         },
                         valueRange = 1f..120f,
-                        steps = 0,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(
@@ -196,6 +206,70 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine, notifier: Noti
         }
     }
 }
+
+// ══════════════════════════════════════════════════════
+// 扩展安装引导卡片
+// ══════════════════════════════════════════════════════
+
+@Composable
+private fun ExtensionSetupGuide(extensionDir: File) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFF3E0), // 浅橙色背景
+        ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                "🔧 安装浏览器扩展",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "1. 打开 Chrome，地址栏输入 chrome://extensions 回车",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "2. 右上角开启「开发者模式」",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                "3. 点击「加载已解压的扩展」→ 选择以下目录：",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(4.dp))
+            // 路径显示
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+                color = Color(0xFF424242),
+            ) {
+                Text(
+                    text = extensionDir.absolutePath,
+                    modifier = Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color(0xFFA5D6A7),
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            // 打开目录按钮
+            OutlinedButton(
+                onClick = {
+                    try {
+                        Runtime.getRuntime().exec(arrayOf("explorer", extensionDir.absolutePath))
+                    } catch (_: Exception) {}
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("📂 打开扩展目录")
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════
 
 @Composable
 private fun InfoRow(label: String, value: String) {
