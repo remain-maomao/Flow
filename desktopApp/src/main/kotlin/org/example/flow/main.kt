@@ -27,9 +27,9 @@ fun main() = application {
         tabServer.startSafe()
     }
 
-    // 初始进入工作模式
+    // 启动引擎
     LaunchedEffect(Unit) {
-        reminderEngine.onModeChanged(org.example.flow.model.Mode.WORK)
+        reminderEngine.start()
     }
 
     Window(

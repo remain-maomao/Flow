@@ -44,6 +44,12 @@ class ReminderEngine(
 
     // ── 公开方法 ──────────────────────────────────────
 
+    /** 首次启动引擎（无条件启动计时器，不检查模式是否变化） */
+    fun start() {
+        println("[ReminderEngine] 引擎启动，模式: $currentMode，倍速: ${timeScale}x")
+        restartTimers()
+    }
+
     /** 模式变化时调用，重置所有计时器 */
     fun onModeChanged(newMode: Mode) {
         if (newMode == currentMode) return
