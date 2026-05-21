@@ -14,37 +14,144 @@
 
 ## 分阶段实施
 
-### 🔜 Phase 2.1：核心 UX 修复（P0）
+### 🔜 Phase 2.1：核心 UX 修复（P0）【进行中】
 
-#### 2.1.1 托盘菜单乱码修复
+---
 
-**目标**：托盘右键菜单正常显示中文。
+#### ✅ 2.1.1 托盘菜单乱码修复 【已完成】
 
-**方案**：
-- 尝试 1：列出系统所有可用字体，找出真正支持中文的 AWT 字体名（`GraphicsEnvironment.getAvailableFontFamilyNames()`）
-- 尝试 2：如果 setFont 对原生托盘菜单确实无效，改为英文文案（`Show` / `Exit`），至少可用
-- 尝试 3：使用 JNA 直接操作 Win32 托盘菜单（复杂，Phase 3 考虑）
+**目标**：托盘右键菜单正常显示文字。
 
-**验证**：右键托盘图标 → 菜单文字正常显示（中文或英文均可）
+**子步骤**：
+
+##### 步骤 A：诊断 — 列出系统所有可用 AWT 字体
+
+**操作**：
+- 在 `main.kt` 启动时打印 `GraphicsEnvironment.getLocalGraphicsEnvironment().availableFontFamilyNames` 的前 30 个字体名
+- 手动从中找出包含 "YaHei" / "SimSun" / "Song" / "Hei" 等关键词的字体
+- 记录正确的字体名（AWT 中的名字可能与 Windows 显示名不同）
+
+**验证**：终端输出字体列表，确认存在中文字体
+
+---
+
+##### 步骤 B：应用正确字体
+
+**操作**：
+- 用步骤 A 找到的正确字体名替换 `Notifier.kt` 中的 `Font("Microsoft YaHei", ...)`
+- 对 MenuItem 和 PopupMenu 都设置字体
+
+**验证**：编译通过，安装 MSI 后托盘菜单显示中文
+
+---
+
+##### 步骤 C：英文降级方案（如果步骤 B 仍失败）
+
+**操作**：
+- 将 MenuItem 文案从「显示窗口」「退出」改为 `"Show"` / `"Exit"`
+- 如果 AWT 字体设置对原生托盘菜单确实无效，至少英文 ASCII 在所有字体中都能正常渲染
+
+**验证**：托盘菜单显示 "Show" / "Exit"，英文正常渲染
+
+---
+
+**最终验收**：右键托盘图标 → 菜单文字清晰可读（中文或英文均可）
 
 ---
 
 #### 2.1.2 自定义提醒弹窗
 
-**目标**：替代 Windows 原生气泡，使用 Compose 自定义通知窗口。
+**目标**：用 Compose 自定义弹窗替代 Windows 原生 `TrayIcon.displayMessage()`。
 
-**方案**：
-- 创建一个独立的 Compose `NotificationWindow`（无边框、置顶、自动消失）
-- 样式：圆角卡片 + 模式色条 + 提醒文案 + 渐隐动画
-- 生命周期：弹出 → 停留 4 秒 → 淡出消失
-- 替代 `TrayIcon.displayMessage()` 调用
+**子步骤**：
 
-**验收标准**：
-| # | 场景 | 预期 |
-|---|------|------|
-| 1 | 工作模式喝水提醒 | 右下角弹出绿色边框卡片「💧 该喝水了」，4 秒后消失 |
-| 2 | 娱乐模式提醒 | 红色边框卡片「⏰ 已经过去 2 分钟了」 |
-| 3 | 连续触发 | 新提醒覆盖旧提醒（不堆叠） |
+##### 步骤 A：创建 `NotificationPopup` Composable
+
+**产出文件**：`notify/NotificationPopup.kt`
+
+**具体逻辑**：
+- 一个独立 `Window`（非主窗口），`undecorated = true`, `alwaysOnTop = true`, `transparent = true`
+- 定位：屏幕右下角，偏移 (20, 40) 像素
+- 内容：圆角卡片 (12dp) + 左侧 4px 粗色条（绿/红） + emoji + 文案
+- 尺寸：宽 300dp，高自适应
+- 通过 `rememberWindowState(position = ...)` 设置位置
+
+**具体代码骨架**：
+```kotlin
+@Composable
+fun NotificationPopup(
+    message: String,
+    mode: Mode,
+    onDismiss: () -> Unit,
+) {
+    val screenBounds = GraphicsEnvironment.localGraphicsEnvironment
+        .defaultScreenDevice.defaultConfiguration.bounds
+    val windowState = rememberWindowState(
+        position = WindowPosition(
+            WindowPosition.Platform.Aligned.TOP_RIGHT,  // 用偏移模拟右下
+        ),
+        width = 300.dp,
+    )
+    // 或者用绝对坐标：
+    // x = screenBounds.width - 320.dp, y = screenBounds.height - 120.dp
+
+    Window(
+        onCloseRequest = onDismiss,
+        state = windowState,
+        undecorated = true,
+        alwaysOnTop = true,
+        transparent = true,
+        focused = false,
+    ) {
+        // 圆角卡片 + 色条 + 文字
+    }
+}
+```
+
+**验证**：编译通过
+
+---
+
+##### 步骤 B：添加动画（淡入 + 自动消失）
+
+**操作**：
+- 用 `AnimatedVisibility` 包裹卡片内容
+- `LaunchedEffect` 内 `delay(4_000)` 后调用 `onDismiss()`
+- 淡入动画：`fadeIn(tween(300))`
+- 淡出动画：`fadeOut(tween(500))`
+
+**验证**：弹窗出现时有淡入效果，4 秒后自动淡出
+
+---
+
+##### 步骤 C：与 `ReminderEngine` 对接
+
+**修改文件**：`main.kt`、`Notifier.kt`
+
+**操作**：
+- `Notifier.show()` 不再调用 `trayIcon.displayMessage()`，改为触发通知弹窗
+- `Notifier` 持有 `currentMode` 和 `currentMessage` 状态
+- `main.kt` 中新增一个 `NotificationPopup` 实例，由 `Notifier` 控制显示/隐藏
+- 状态管理：`notifier` 发射事件 → `main.kt` 中 `LaunchedEffect` 消费 → 显示弹窗
+
+**简化方案**（避免复杂状态传递）：
+- `main.kt` 中维护 `var notificationMessage by remember { mutableStateOf<String?>(null) }`
+- `ReminderEngine.onReminder` 设为 `{ rule -> notificationMessage = rule.message }`
+- 当 `notificationMessage != null` 时渲染 `NotificationPopup`
+- `NotificationPopup.onDismiss` 设为 `{ notificationMessage = null }`
+- 新提醒直接覆盖旧状态（不堆叠）
+
+**验证**：`./gradlew :desktopApp:run`，@60x 约 15 秒后右下角弹出 Compose 风格通知弹窗（不是 Windows 原生气泡）
+
+---
+
+##### 步骤 D：清理旧代码
+
+**操作**：
+- 删除 `Notifier.show()` 中的 `trayIcon.displayMessage()` 调用
+- `notifier.show()` 保留但改为通过回调触发通知弹窗状态
+
+**验证**：编译通过，无未使用的 import
 
 ---
 

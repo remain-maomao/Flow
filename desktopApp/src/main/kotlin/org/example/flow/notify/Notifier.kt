@@ -26,16 +26,11 @@ class Notifier(
         try {
             val tray = SystemTray.getSystemTray()
 
-            // 中文字体（解决菜单显示方块问题）
-            val menuFont = Font("Microsoft YaHei", Font.PLAIN, 12)
-
-            // 右键菜单
+            // 右键菜单（使用英文，系统托盘原生菜单不支持 AWT 中文字体设置）
             val popup = PopupMenu()
-            val showItem = MenuItem("显示窗口")
-            showItem.font = menuFont
+            val showItem = MenuItem("Show Window")
             showItem.addActionListener { onShowWindow() }
-            val exitItem = MenuItem("退出")
-            exitItem.font = menuFont
+            val exitItem = MenuItem("Exit")
             exitItem.addActionListener { onExit() }
             popup.add(showItem)
             popup.addSeparator()

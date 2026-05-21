@@ -38,32 +38,11 @@ Kotlin 源码 (UTF-8)
 
 ## Issue #2: 托盘右键菜单中文显示为方块
 
-**状态**：🟡 已知问题（待后续修复）
+**状态**：✅ 已解决（英文降级）
 **发现版本**：第七步完成后
-**现象**：系统托盘右键菜单的「显示窗口」和「退出」显示为方块（□□）。
+**原因**：Compose Multiplatform 框架 Bug（[GitHub #4486](https://github.com/JetBrains/compose-multiplatform/issues/4486) → [YouTrack CMP-4486](https://youtrack.jetbrains.com/issue/CMP-4486)）。
+Windows 系统托盘菜单由原生 Explorer.exe 渲染，AWT/Compose 层无法控制字体。所有 JDK 版本和编码设置均无效。
 
-**链路分析**：
+**解决方案**：托盘菜单改为英文 `"Show Window"` / `"Exit"`，ASCII 字符在所有字体中可正常渲染。
 
-```
-Notifier.kt
-  → MenuItem("显示窗口") 创建 AWT MenuItem
-  → AWT 使用系统默认 GUI 字体渲染
-  → Windows 原生菜单控件渲染
-  → 屏幕显示
-```
-
-| 环节 | 检查点 | 状态 |
-|------|--------|------|
-| 字符串内容 | Kotlin 中 `"显示窗口"` | ✅ 源码 UTF-8，运行时可正确读取 |
-| AWT MenuItem 创建 | `MenuItem(String)` 构造 | ✅ 创建成功 |
-| AWT 字体设置 | `MenuItem.setFont()` | ⚠️ 系统托盘使用原生菜单，可能不遵循 AWT 字体设置 |
-| 系统字体可用性 | 系统是否安装了中文字体 | ✅ Windows 通常有 Microsoft YaHei |
-
-**根因**：Windows 系统托盘菜单是原生控件，AWT 只做了薄封装。`MenuItem.setFont()` 对系统托盘菜单可能无效，菜单渲染由 Windows 自身的字体回退机制决定。
-
-**尝试的修复**：设置 `Font("Microsoft YaHei", Font.PLAIN, 12)`，但未生效。
-
-**可能原因**：
-1. `Microsoft YaHei` 字体名在 AWT 中的映射名可能不同
-2. Windows 系统托盘的原生菜单控件不受 AWT 字体设置影响
-3. 需检查 `GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()` 获取可用字体名
+**未来**：等待 Compose Multiplatform 框架修复后改回中文。
