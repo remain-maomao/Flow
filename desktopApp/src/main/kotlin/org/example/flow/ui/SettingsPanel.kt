@@ -1,9 +1,8 @@
 package org.example.flow.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +15,7 @@ import org.example.flow.classify.ModeClassifier
 
 /**
  * 设置面板：编辑娱乐黑名单（域名 + 应用关键词）。
+ * 整个面板可上下滚动。
  */
 @Composable
 fun SettingsPanel(onClose: () -> Unit) {
@@ -27,41 +27,40 @@ fun SettingsPanel(onClose: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
             // ── 标题栏 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("⚙ 黑名单设置", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("Blacklist Settings", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 TextButton(onClick = onClose) {
-                    Text("关闭")
+                    Text("Close")
                 }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // ── 娱乐域名 ──
-            Text("🌐 娱乐域名", style = MaterialTheme.typography.labelMedium)
+            Text("Entertainment Domains", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(4.dp))
-            LazyColumn(modifier = Modifier.height(120.dp)) {
-                items(config.entertainmentDomains) { domain ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(domain, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = {
-                            config = config.copy(
-                                entertainmentDomains = config.entertainmentDomains - domain,
-                            )
-                            ConfigManager.save(config)
-                            ModeClassifier.reload()
-                        }) {
-                            Text("✕", color = MaterialTheme.colorScheme.error)
-                        }
+            config.entertainmentDomains.forEach { domain ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(domain, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        config = config.copy(entertainmentDomains = config.entertainmentDomains - domain)
+                        ConfigManager.save(config); ModeClassifier.reload()
+                    }) {
+                        Text("X", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -73,7 +72,7 @@ fun SettingsPanel(onClose: () -> Unit) {
                 OutlinedTextField(
                     value = newDomain,
                     onValueChange = { newDomain = it },
-                    placeholder = { Text("输入域名，如 example.com") },
+                    placeholder = { Text("e.g. example.com") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -83,11 +82,10 @@ fun SettingsPanel(onClose: () -> Unit) {
                     if (d.isNotEmpty() && d !in config.entertainmentDomains) {
                         config = config.copy(entertainmentDomains = config.entertainmentDomains + d)
                         newDomain = ""
-                        ConfigManager.save(config)
-                        ModeClassifier.reload()
+                        ConfigManager.save(config); ModeClassifier.reload()
                     }
                 }) {
-                    Text("添加")
+                    Text("Add")
                 }
             }
 
@@ -96,23 +94,20 @@ fun SettingsPanel(onClose: () -> Unit) {
             Spacer(Modifier.height(8.dp))
 
             // ── 娱乐应用 ──
-            Text("🎮 娱乐应用关键词", style = MaterialTheme.typography.labelMedium)
+            Text("Entertainment Apps", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(4.dp))
-            LazyColumn(modifier = Modifier.height(120.dp)) {
-                items(config.entertainmentApps) { app ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(app, style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = {
-                            config = config.copy(
-                                entertainmentApps = config.entertainmentApps - app,
-                            )
-                        }) {
-                            Text("✕", color = MaterialTheme.colorScheme.error)
-                        }
+            config.entertainmentApps.forEach { app ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(app, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        config = config.copy(entertainmentApps = config.entertainmentApps - app)
+                        ConfigManager.save(config); ModeClassifier.reload()
+                    }) {
+                        Text("X", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -124,7 +119,7 @@ fun SettingsPanel(onClose: () -> Unit) {
                 OutlinedTextField(
                     value = newApp,
                     onValueChange = { newApp = it },
-                    placeholder = { Text("输入关键词，如 steam") },
+                    placeholder = { Text("e.g. steam") },
                     singleLine = true,
                     modifier = Modifier.weight(1f),
                 )
@@ -134,11 +129,10 @@ fun SettingsPanel(onClose: () -> Unit) {
                     if (a.isNotEmpty() && a !in config.entertainmentApps) {
                         config = config.copy(entertainmentApps = config.entertainmentApps + a)
                         newApp = ""
-                        ConfigManager.save(config)
-                        ModeClassifier.reload()
+                        ConfigManager.save(config); ModeClassifier.reload()
                     }
                 }) {
-                    Text("添加")
+                    Text("Add")
                 }
             }
 
@@ -155,6 +149,9 @@ fun SettingsPanel(onClose: () -> Unit) {
             ) {
                 Text("Restore Defaults")
             }
+
+            // 底部留白确保滚动时最后一项可见
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

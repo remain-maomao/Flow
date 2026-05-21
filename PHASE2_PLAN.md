@@ -225,6 +225,18 @@ fun NotificationPopup(
 | 3 | 保存 | 访问 `example.com` 识别为娱乐模式 |
 | 4 | 关闭重开 | 配置依然存在 |
 
+##### 步骤 E：设置面板可滚动
+
+**问题**：面板内容多，窗口无法全部显示且不能滚动。Save 按钮被挤出屏幕外。
+
+**修改文件**：`ui/SettingsPanel.kt`
+
+**操作**：
+- 最外层 `Column` 添加 `Modifier.verticalScroll(rememberScrollState())`
+- 移除 `LazyColumn` 的固定高度 `120.dp`，或保持最小高度
+
+**验证**：窗口不够高时可以上下滚动，所有内容可见
+
 ---
 
 ### Phase 2.3：体验打磨（P2-P3）

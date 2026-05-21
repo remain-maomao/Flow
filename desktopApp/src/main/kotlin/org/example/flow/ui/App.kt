@@ -210,7 +210,7 @@ fun FlowApp(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(onClick = { showSettings = !showSettings }) {
-                    Text(if (showSettings) "关闭设置" else "⚙ 设置")
+                    Text(if (showSettings) "Close Settings" else "Settings")
                 }
                 Button(
                     onClick = { reminderEngine.triggerNow() },
