@@ -18,16 +18,19 @@ object IconGenerator {
 
     fun generateIfMissing() {
         val dir = File("desktopApp/src/main/resources")
-        val file = File(dir, "icon.png")
-        if (file.exists()) {
-            println("[IconGenerator] Icon already exists: ${file.absolutePath}")
+        val userIcon = File(dir, "flow.png")
+        val fallback = File(dir, "icon.png")
+
+        // 用户自定义图标优先，不覆盖
+        if (userIcon.exists() || fallback.exists()) {
+            println("[IconGenerator] Icon already exists, skip generation")
             return
         }
         dir.mkdirs()
         try {
             val image = generate()
-            ImageIO.write(image, "PNG", file)
-            println("[IconGenerator] Icon generated: ${file.absolutePath}")
+            ImageIO.write(image, "PNG", fallback)
+            println("[IconGenerator] Icon generated: ${fallback.absolutePath}")
         } catch (e: Exception) {
             println("[IconGenerator] Failed: ${e.message}")
         }

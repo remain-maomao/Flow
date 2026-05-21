@@ -10,9 +10,13 @@ import org.example.flow.model.Mode
 import org.example.flow.notify.NotificationPopup
 import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import org.example.flow.setup.ExtensionInstaller
 import org.example.flow.setup.IconGenerator
 import org.example.flow.ui.FlowApp
+import org.jetbrains.skia.Image as SkiaImage
+import java.io.File
 
 fun main() = application {
     var isVisible by remember { mutableStateOf(true) }
@@ -75,10 +79,24 @@ fun main() = application {
         )
     }
 
+    // ── 加载窗口图标 ──
+    val windowIcon = remember {
+        try {
+            val iconFile = File("desktopApp/src/main/resources/flow.png")
+            if (iconFile.exists()) {
+                val bitmap = SkiaImage.makeFromEncoded(iconFile.readBytes()).toComposeImageBitmap()
+                BitmapPainter(bitmap)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     Window(
         onCloseRequest = { isVisible = false },
         visible = isVisible,
         title = "Flow",
+        icon = windowIcon,
         state = rememberWindowState(width = 500.dp, height = 640.dp),
     ) {
         FlowApp(

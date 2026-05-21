@@ -37,13 +37,14 @@ class Notifier(
             popup.addSeparator()
             popup.add(exitItem)
 
-            // 加载应用图标
+            // 加载用户图标（优先 flow.png，回退 icon.png）
             val iconImage = try {
-                val iconFile = java.io.File("desktopApp/src/main/resources/icon.png")
-                if (iconFile.exists()) javax.imageio.ImageIO.read(iconFile)
-                else createIcon(TRAY_GREEN)
+                val userIcon = java.io.File("desktopApp/src/main/resources/flow.png")
+                val fallback = java.io.File("desktopApp/src/main/resources/icon.png")
+                val file = if (userIcon.exists()) userIcon else fallback
+                if (file.exists()) javax.imageio.ImageIO.read(file) else createFallbackIcon()
             } catch (e: Exception) {
-                createIcon(TRAY_GREEN)
+                createFallbackIcon()
             }
 
             trayIcon = TrayIcon(iconImage, "Flow", popup)
@@ -63,13 +64,13 @@ class Notifier(
 
     // ── 内部方法 ──────────────────────────────────────
 
-    /** 程序生成 16×16 纯色圆形图标 */
-    private fun createIcon(color: Color): Image {
+    /** 程序生成 16×16 回退图标 */
+    private fun createFallbackIcon(): Image {
         val size = 16
         val image = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
         val g = image.createGraphics()
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        g.color = color
+        g.color = Color(0x4CAF50)
         g.fillOval(1, 1, size - 2, size - 2) // 留 1px 边距
         g.dispose()
         return image
