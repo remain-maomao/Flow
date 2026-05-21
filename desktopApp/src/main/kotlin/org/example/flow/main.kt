@@ -6,22 +6,37 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import org.example.flow.engine.ReminderEngine
 import org.example.flow.server.TabServer
 import org.example.flow.ui.FlowApp
 
 fun main() = application {
     val tabServer = remember { TabServer() }
+    val reminderEngine = remember {
+        ReminderEngine(
+            timeScale = 60L,
+            onReminder = { rule ->
+                // 第六步：先打印到控制台，第七步再接托盘通知
+                println("🔔 提醒: ${rule.message}  [${java.text.SimpleDateFormat("HH:mm:ss").format(java.util.Date())}]")
+            },
+        )
+    }
 
     // 启动 WebSocket 服务端
     LaunchedEffect(Unit) {
         tabServer.startSafe()
     }
 
+    // 初始进入工作模式
+    LaunchedEffect(Unit) {
+        reminderEngine.onModeChanged(org.example.flow.model.Mode.WORK)
+    }
+
     Window(
         onCloseRequest = ::exitApplication,
         title = "Flow - 专注助手",
-        state = rememberWindowState(width = 480.dp, height = 380.dp),
+        state = rememberWindowState(width = 480.dp, height = 520.dp),
     ) {
-        FlowApp(tabServer)
+        FlowApp(tabServer, reminderEngine)
     }
 }

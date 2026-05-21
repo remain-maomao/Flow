@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import org.example.flow.classify.ModeClassifier
 import org.example.flow.classify.ModeDetector
+import org.example.flow.engine.ReminderEngine
 import org.example.flow.model.ActiveWindow
 import org.example.flow.model.BrowserMessage
 import org.example.flow.model.ClassificationResult
@@ -27,7 +28,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun FlowApp(tabServer: TabServer) {
+fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine) {
     var activeWindow by remember {
         mutableStateOf(ActiveWindow("(等待采集...)", "(等待采集...)", 0L))
     }
@@ -35,6 +36,10 @@ fun FlowApp(tabServer: TabServer) {
         mutableStateOf<BrowserMessage?>(null)
     }
     var currentMode by remember { mutableStateOf(Mode.WORK) }
+
+    // ── UI 状态（从 ReminderEngine 收集） ──
+    val elapsedVirtualMs by reminderEngine.elapsedVirtualMs.collectAsState()
+    val nextReminderVirtualMs by reminderEngine.nextReminderVirtualMs.collectAsState()
 
     val modeDetector = remember { ModeDetector(debounceMs = 5_000L) }
 
@@ -52,20 +57,20 @@ fun FlowApp(tabServer: TabServer) {
         }
     }
 
-    // ── 模式检测（两路数据 → 分类 → 防抖） ──
+    // ── 模式检测 ──
     LaunchedEffect(Unit) {
-        // 将两路原始数据各自分类为 ClassificationResult，然后合并
         val windowResults = WindowMonitor.observeActiveWindow()
             .map { window -> ModeClassifier.classifyWindow(window) }
-
         val browserResults = tabServer.messages
             .map { msg -> ModeClassifier.classifyBrowser(msg) }
-
-        val mergedResults: kotlinx.coroutines.flow.Flow<ClassificationResult> =
+        val merged: kotlinx.coroutines.flow.Flow<ClassificationResult> =
             merge(windowResults, browserResults)
 
-        modeDetector.detect(mergedResults).collectLatest { mode ->
-            currentMode = mode
+        modeDetector.detect(merged).collectLatest { mode ->
+            if (mode != currentMode) {
+                currentMode = mode
+                reminderEngine.onModeChanged(mode)
+            }
         }
     }
 
@@ -93,18 +98,23 @@ fun FlowApp(tabServer: TabServer) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(
-                    text = modeLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = modeColor,
-                )
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(modeColor),
-                )
+                Text(modeLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = modeColor)
+                Box(modifier = Modifier.size(12.dp).clip(RoundedCornerShape(6.dp)).background(modeColor))
+            }
+
+            // ── 计时状态 ──
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("⏱ 计时状态", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+                    InfoRow("已持续", ReminderEngine.formatDuration(elapsedVirtualMs))
+                    InfoRow(
+                        "下次提醒",
+                        if (nextReminderVirtualMs != null)
+                            ReminderEngine.formatDuration(nextReminderVirtualMs!!)
+                        else "—",
+                    )
+                }
             }
 
             // ── 桌面窗口 ──
@@ -126,18 +136,27 @@ fun FlowApp(tabServer: TabServer) {
                         InfoRow("域名", browserMessage!!.domain)
                         InfoRow("标题", browserMessage!!.title)
                     } else {
-                        Text(
-                            "等待扩展连接...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Text("等待扩展连接...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                }
+            }
+
+            // ── 操作按钮 ──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = { reminderEngine.triggerNow() },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("手动触发提醒")
                 }
             }
 
             // ── 状态栏 ──
             Text(
-                "刷新: ${SimpleDateFormat("HH:mm:ss").format(Date())}",
+                "刷新: ${SimpleDateFormat("HH:mm:ss").format(Date())} | 倍速: ${60}x",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -152,7 +171,7 @@ private fun InfoRow(label: String, value: String) {
             text = label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(48.dp),
+            modifier = Modifier.width(72.dp),
         )
         Text(
             text = value.ifEmpty { "(空)" },

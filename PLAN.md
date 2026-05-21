@@ -416,17 +416,103 @@ class ModeDetector(private val debounceMs: Long = 5000L) {
 
 ---
 
-### 第六步：提醒引擎
+### ✅ 第六步：提醒引擎 【已完成】
 
-**目标**：模式驱动的定时器，支持时间加速。
+**目标**：模式驱动的定时器，支持演示时间加速。模式切换时重置所有计时器。
 
-**关键任务**：
-- 模式切换重置计时器
-- 工作模式：15min / 40min 提醒
-- 娱乐模式：2min 提醒
-- 可调时间倍速
+---
 
-**验证方式**：@60x 加速下，娱乐模式 2s 后提醒，工作模式 15s/40s 后提醒。
+#### 6.1 定义提醒规则数据结构
+
+**产出文件**：`engine/ReminderRule.kt`
+
+**具体代码**：
+```kotlin
+data class ReminderRule(
+    val id: String,           // 唯一标识，如 "drink_water"
+    val intervalMs: Long,     // 触发间隔（毫秒），如 15 * 60_000 = 15 分钟
+    val message: String,      // 提醒文案，如 "💧 该喝水了"
+    val priority: Int = 0,    // 优先级，数值越大越优先（多个提醒同时触发时取最高）
+)
+```
+
+**验证**：编译通过
+
+---
+
+#### 6.2 编写 `ReminderEngine` — 核心状态机
+
+**产出文件**：`engine/ReminderEngine.kt`
+
+**具体逻辑（逐行为）**：
+
+```kotlin
+class ReminderEngine(
+    private val timeScale: Long = 60L,  // 演示加速：60x，1 秒 = 1 分钟
+    private val onReminder: (String) -> Unit,  // 提醒回调（后续接 Notifier）
+) {
+    // 工作模式规则
+    private val workRules = listOf(
+        ReminderRule("drink", 15 * 60_000, "💧 该喝水了", 0),
+        ReminderRule("stand", 40 * 60_000, "🧍 站起来活动一下", 1),
+    )
+    // 娱乐模式规则
+    private val entRules = listOf(
+        ReminderRule("ent_nudge", 2 * 60_000, "⏰ 已经过去 2 分钟了", 0),
+    )
+
+    private var currentMode: Mode = Mode.WORK
+    private var modeStartTime: Long = 0L
+    private val timerJobs = mutableMapOf<String, Job>()
+
+    fun onModeChanged(newMode: Mode) { ... }
+    fun getElapsedInMode(): Long { ... }
+    fun getNextReminderIn(): Long? { ... }
+}
+```
+
+**核心机制**：
+- `onModeChanged(mode)` → 取消所有旧定时器 → 记录 `modeStartTime` → 为每个规则启动协程 `delay(interval / timeScale)` → 触发 `onReminder` → 重新调度
+- `getElapsedInMode()` → `(now - modeStartTime) * timeScale`（虚拟时间）
+- `getNextReminderIn()` → 最近一个即将触发的提醒距离现在的虚拟时间
+
+**验证**：编译通过
+
+---
+
+#### 6.3 添加时间倍速调节
+
+**产出文件**：`engine/ReminderEngine.kt`（同 6.2，增加 `updateTimeScale` 方法）
+
+**具体逻辑**：
+```kotlin
+fun updateTimeScale(newScale: Long) {
+    // 取消所有 timer，用新的 timeScale 重新调度
+}
+```
+
+**验证**：编译通过
+
+---
+
+#### 6.4 集成到 UI — 显示时长 + 倒计时
+
+**修改文件**：`ui/App.kt`、`main.kt`
+
+**具体变更**：
+- 在 `FlowApp` 中创建 `ReminderEngine` 实例
+- 监听 `currentMode` 变化 → 调用 `engine.onModeChanged(mode)`
+- UI 新增行：
+  - 「已持续: XX 分 XX 秒」（虚拟时间）
+  - 「下次提醒: XX 秒后」
+- 提醒触发时先 `println()` 打印到控制台（第七步再接入托盘通知）
+
+**验收标准（@60x 加速，手动操作）**：
+1. 应用启动 → 工作模式 → 控制台约 15 秒后打印 `💧 该喝水了`
+2. 再过约 25 秒 → 控制台打印 `🧍 站起来活动一下`
+3. 浏览器打开 bilibili → 5 秒后变娱乐模式 → 控制台约 2 秒后打印 `⏰ 已经过去 2 分钟了`
+4. UI 上的「已持续」和「下次提醒」数字实时跳动
+5. 切换模式 → 计时器立即重置，从 0 开始
 
 ---
 
