@@ -96,7 +96,103 @@
 
 ---
 
-### ✅ Phase 3.3：白名单功能（P1）【已完成】
+### 🔜 Phase 3.3 修复：按 Spec 重写分类逻辑 【进行中】
+
+**问题**：merge 两个数据流导致窗口轮询打断扩展分类的 streak。
+
+**根据**：`CLASSIFIER_SPEC.md`
+
+**子步骤**：
+
+##### 步骤 1：在 App.kt 中新增两个追踪变量
+
+**操作**：
+- 新增 `var latestBrowserMessage: BrowserMessage? = null`（普通变量，非 Compose state）
+- 复用已有 `var extensionConnected = false`（已在代码中）
+
+**目标**：变量声明完毕，编译通过
+**验收**：`./gradlew :desktopApp:compileKotlin` 成功
+
+---
+
+##### 步骤 2：TabServer 事件更新这两个变量
+
+**操作**：
+- `tabServer.messages` 的 `collectLatest` 中，增加 `latestBrowserMessage = msg`
+- **新增**：监听 TabServer 连接/断开状态。TabServer 的 `onOpen` / `onClose` 通过回调通知 App.kt
+- 在 `TabServer` 中新增两个回调参数：`onConnected: () -> Unit`, `onDisconnected: () -> Unit`
+
+**目标**：扩展连接/断开时 `extensionConnected` 准确变化；每次收到消息时 `latestBrowserMessage` 更新
+**验收**：启动应用，Chrome 扩展连接 → 终端日志确认变量变化
+
+---
+
+##### 步骤 3：删除旧 merge 逻辑，改为单入口分类
+
+**操作**：
+- 删除以下代码：
+  ```kotlin
+  val windowResults = ... .map { classifyWindow(it) }
+  val browserResults = ... .map { classifyBrowser(it) }
+  val merged = merge(windowResults, browserResults)
+  modeDetector.detect(merged).collect { ... }
+  ```
+- 替换为：
+  ```kotlin
+  WindowMonitor.observeActiveWindow().collect { window ->
+      val result = classifySingle(window)
+      modeDetector.detect(flowOf(result)).collect { ... }
+  }
+  ```
+
+**目标**：每次 ActiveWindow 到达时，执行一次判定，产生一个 ClassificationResult，送入 Detector
+**验收**：编译通过
+
+---
+
+##### 步骤 4：实现 `classifySingle()` 函数
+
+**操作**：
+- 在 App.kt 中创建私有函数 `classifySingle(window: ActiveWindow): ClassificationResult`
+- 逻辑按 Spec Step1-3：
+  1. 判断 `processName` 是否是浏览器
+  2. 是浏览器 + 扩展已连接 + latestBrowserMessage 存在 → 用 `classifyBrowser(latestBrowserMessage)`
+  3. 否则 → 用 `classifyWindow(window)`
+- 返回 ClassificationResult
+
+**目标**：每次调用返回唯一的 ClassificationResult
+**验收**：编译通过
+
+---
+
+##### 步骤 5：修复 ModeDetector 集成
+
+**操作**：
+- 因为旧代码用 `modeDetector.detect(merged)` 接收 Flow，新代码每次产生一个 result
+- 改为：用一个 `MutableSharedFlow<ClassificationResult>` 作为 Detector 的输入流
+- `classifySingle()` 的结果 emit 到这个 SharedFlow
+- Detector 从 SharedFlow 读取
+
+**目标**：单次分类结果正确送入 Detector 做 5 秒防抖
+**验收**：编译通过
+
+---
+
+##### 步骤 6：端到端场景验证
+
+**场景 A：应用→浏览器（扩展在线）**
+- 操作：当前窗口是 VS Code，然后切换到 Chrome(YouTube)
+- 预期：日志出现 `[Classifier] BROWSER ... ENTERTAINMENT`，5 秒后 `[Detector] SWITCH -> ENTERTAINMENT`
+- 操作：切回 VS Code
+- 预期：5 秒后切回 WORK
+
+**场景 B：浏览器（扩展离线）**
+- 操作：关闭扩展，前台窗口切换到 Chrome(YouTube)
+- 预期：日志出现 `[Classifier] WINDOW ...`，用窗口标题分类
+
+**场景 C：桌面应用**
+- 操作：切换到 Steam
+- 预期：日志出现 `[Classifier] WINDOW ... HIT 'steam' -> ENTERTAINMENT`
 
 #### 3.3.1 URL 路径白名单
 
