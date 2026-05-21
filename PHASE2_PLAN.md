@@ -241,28 +241,90 @@ fun NotificationPopup(
 
 ---
 
-### Phase 2.3：体验打磨（P2-P3）
+### 🔜 Phase 2.3：体验打磨（P2-P3）【进行中】
+
+---
 
 #### 2.3.1 应用图标统一
 
-**目标**：任务栏和托盘使用统一的应用图标。
+**目标**：任务栏和托盘图标统一，替换程序化圆点为实际图标。
 
-**方案**：
-- 设计/生成一个 256×256 应用图标（ICO 格式）
-- 在 `build.gradle.kts` 中配置 `nativeDistributions.windows.iconFile`
-- 托盘图标改为使用同一图标，仅通过颜色滤镜区分模式
+**子步骤**：
+
+##### 步骤 A：生成应用图标
+
+**操作**：
+- 用 Kotlin 代码生成一个 256×256 的图标（渐变蓝色圆角方形 + 白色 "F" 字母）
+- 保存为 `desktopApp/src/main/resources/icon.png`
+- 同时复用为托盘图标（通过缩放）
+
+**验证**：编译通过，资源文件存在
+
+##### 步骤 B：配置 build.gradle.kts
+
+**操作**：
+- `nativeDistributions.windows.iconFile.set(project.file("src/main/resources/icon.ico"))`
+- 需要先将 PNG 转为 ICO（或直接生成 ICO）
+
+**验证**：打包 MSI 后，安装的应用在开始菜单和任务栏显示新图标
+
+##### 步骤 C：托盘图标改为统一图标
+
+**操作**：
+- `Notifier.kt` 中加载 `icon.png` 资源替代程序化圆点
+- 模式切换时仍通过颜色滤镜（绿色/红色）区分
+
+**验证**：托盘图标不再是小圆点，而是统一的应用图标
 
 ---
 
 #### 2.3.2 演示模式隐藏
 
-**目标**：普通用户看不到倍速滑块，开发者通过隐藏操作激活。
+**目标**：普通用户看不到倍速滑块和手动触发按钮，开发者连续点击标题 7 次解锁。
 
-**方案**：
-- 倍速滑块默认隐藏
-- 连续点击版本号/标题文字 7 次 → 弹出 Toast「开发者模式已开启」
-- 此时倍速滑块和「手动触发」按钮显示
-- 状态持久化到 `config.json`
+**子步骤**：
+
+##### 步骤 A：ConfigManager 增加 developerMode 字段
+
+**修改文件**：`classify/AppConfig.kt`（在 ConfigManager.kt 中）
+
+**操作**：
+- `AppConfig` 新增 `val developerMode: Boolean = false`
+
+**验证**：编译通过
+
+##### 步骤 B：UI 添加点击计数器
+
+**修改文件**：`ui/App.kt`
+
+**操作**：
+- 标题 "Flow - 专注助手" 改为可点击
+- 连续 7 次点击（500ms 内）→ 设置 `developerMode = true`
+- `developerMode = true` 时显示倍速滑块 + 手动触发按钮
+- `developerMode = false` 时隐藏这两项
+
+**具体逻辑**：
+```kotlin
+var clickCount by remember { mutableStateOf(0) }
+var lastClickTime by remember { mutableStateOf(0L) }
+
+// 标题点击处理
+Text("Flow", Modifier.clickable {
+    val now = System.currentTimeMillis()
+    if (now - lastClickTime > 500) clickCount = 0
+    clickCount++
+    lastClickTime = now
+    if (clickCount >= 7) {
+        developerMode = true
+        // persist to config
+    }
+})
+```
+
+**验证**：
+1. 启动后 → 倍速滑块和手动触发按钮不可见
+2. 连续快速点击标题 "Flow" 7 次 → 滑块和按钮出现
+3. 关闭重开 → 仍然可见（持久化）
 
 ---
 

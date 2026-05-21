@@ -37,9 +37,16 @@ class Notifier(
             popup.addSeparator()
             popup.add(exitItem)
 
-            // 创建初始绿色图标
-            val image = createIcon(TRAY_GREEN)
-            trayIcon = TrayIcon(image, "Flow - 专注助手", popup)
+            // 加载应用图标
+            val iconImage = try {
+                val iconFile = java.io.File("desktopApp/src/main/resources/icon.png")
+                if (iconFile.exists()) javax.imageio.ImageIO.read(iconFile)
+                else createIcon(TRAY_GREEN)
+            } catch (e: Exception) {
+                createIcon(TRAY_GREEN)
+            }
+
+            trayIcon = TrayIcon(iconImage, "Flow", popup)
             trayIcon!!.isImageAutoSize = true
             tray.add(trayIcon!!)
 
@@ -49,10 +56,9 @@ class Notifier(
         }
     }
 
-    /** 根据模式切换托盘图标颜色 */
+    /** 更新托盘图标（当前始终使用应用图标） */
     fun updateIcon(mode: Mode) {
-        val color = if (mode == Mode.WORK) TRAY_GREEN else TRAY_RED
-        trayIcon?.image = createIcon(color)
+        // 托盘图标统一使用应用 logo，颜色不变。模式通过窗口 UI 指示。
     }
 
     // ── 内部方法 ──────────────────────────────────────

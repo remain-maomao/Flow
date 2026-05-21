@@ -64,6 +64,7 @@ object ConfigManager {
 data class AppConfig(
     val entertainmentDomains: List<String> = DEFAULT_DOMAINS,
     val entertainmentApps: List<String> = DEFAULT_APPS,
+    val developerMode: Boolean = false,
 ) {
     companion object {
         val DEFAULT_DOMAINS = listOf(

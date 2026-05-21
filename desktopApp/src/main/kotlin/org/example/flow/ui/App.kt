@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +53,16 @@ fun FlowApp(
     var timeScale by remember { mutableStateOf(60L) }
     // ── 设置面板状态 ──
     var showSettings by remember { mutableStateOf(false) }
+    // ── 开发者模式（7 连击标题解锁） ──
+    var developerMode by remember { mutableStateOf(false) }
+    var devClickCount by remember { mutableStateOf(0) }
+    var devLastClickTime by remember { mutableStateOf(0L) }
+
+    // 从配置加载开发者模式
+    LaunchedEffect(Unit) {
+        val cfg = org.example.flow.classify.ConfigManager.load()
+        developerMode = cfg.developerMode
+    }
 
     // ── UI 状态（从 ReminderEngine 收集） ──
     val elapsedVirtualMs by reminderEngine.elapsedVirtualMs.collectAsState()
@@ -112,7 +124,40 @@ fun FlowApp(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Flow - 专注助手", style = MaterialTheme.typography.headlineSmall)
+            // ── 标题（7 连击解锁开发者模式） ──
+            Text(
+                "Flow",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                ) {
+                    val now = System.currentTimeMillis()
+                    if (now - devLastClickTime > 600) devClickCount = 0
+                    devClickCount++
+                    devLastClickTime = now
+                    if (devClickCount >= 7 && !developerMode) {
+                        developerMode = true
+                        val cfg = org.example.flow.classify.ConfigManager.load()
+                        org.example.flow.classify.ConfigManager.save(cfg.copy(developerMode = true))
+                        println("[App] Developer mode unlocked!")
+                    }
+                },
+            )
+            if (developerMode) {
+                Text(
+                    "Developer Mode",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (devClickCount in 4..6 && !developerMode) {
+                Text(
+                    "${7 - devClickCount} more clicks...",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             // ── 模式指示条 ──
             Row(
@@ -177,7 +222,8 @@ fun FlowApp(
                 SettingsPanel(onClose = { showSettings = false })
             }
 
-            // ── 时间倍速滑块 ──
+            // ── 时间倍速滑块（仅开发者模式） ──
+            if (developerMode) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text("⚡ 时间倍速: ${timeScale}x", style = MaterialTheme.typography.titleSmall)
@@ -203,8 +249,10 @@ fun FlowApp(
                     }
                 }
             }
+            } // end developerMode slider
 
-            // ── 操作按钮 ──
+            // ── 操作按钮（手动触发仅开发者模式可见） ──
+            if (developerMode) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -219,8 +267,7 @@ fun FlowApp(
                     Text("手动触发提醒")
                 }
             }
-
-            // ── 状态栏 ──
+            } // end developerMode buttons
             Text(
                 "刷新: ${SimpleDateFormat("HH:mm:ss").format(Date())}",
                 style = MaterialTheme.typography.bodySmall,

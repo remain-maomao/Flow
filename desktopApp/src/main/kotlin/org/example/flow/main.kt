@@ -11,6 +11,7 @@ import org.example.flow.notify.NotificationPopup
 import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
 import org.example.flow.setup.ExtensionInstaller
+import org.example.flow.setup.IconGenerator
 import org.example.flow.ui.FlowApp
 
 fun main() = application {
@@ -44,10 +45,14 @@ fun main() = application {
     // 扩展目录（使用用户目录，确保可写）
     val extensionDir = remember { ExtensionInstaller.getInstallDir() }
 
-    // 异步初始化：扩展安装先于服务启动，失败不崩溃
+    // 异步初始化
     LaunchedEffect(Unit) {
+        // 扩展安装
         ExtensionInstaller.ensureInstalled()
         println("[main] Extension dir: ${extensionDir.absolutePath}")
+
+        // 首次启动时生成图标
+        IconGenerator.generateIfMissing()
     }
 
     // 启动 WebSocket 服务端
@@ -73,7 +78,7 @@ fun main() = application {
     Window(
         onCloseRequest = { isVisible = false },
         visible = isVisible,
-        title = "Flow - 专注助手",
+        title = "Flow",
         state = rememberWindowState(width = 500.dp, height = 640.dp),
     ) {
         FlowApp(
