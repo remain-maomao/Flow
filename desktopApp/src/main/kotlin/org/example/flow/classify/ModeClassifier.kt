@@ -16,7 +16,7 @@ object ModeClassifier {
     /** 刷新配置缓存（用户在设置面板修改后调用） */
     fun reload() {
         cachedConfig = ConfigManager.load()
-        println("[ModeClassifier] 配置已刷新: ${cachedConfig?.entertainmentDomains?.size} 域名, ${cachedConfig?.entertainmentApps?.size} 应用")
+        println("[ModeClassifier] Config reloaded: ${cachedConfig?.entertainmentDomains?.size} domains, ${cachedConfig?.entertainmentApps?.size} apps")
     }
 
     private fun getConfig(): AppConfig {

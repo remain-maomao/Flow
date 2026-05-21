@@ -19,7 +19,7 @@ class Notifier(
         if (SystemTray.isSupported()) {
             setupTray()
         } else {
-            println("[Notifier] ⚠️ 系统托盘不支持")
+            println("[Notifier] System tray not supported")
         }
     }
 
@@ -43,9 +43,9 @@ class Notifier(
             trayIcon!!.isImageAutoSize = true
             tray.add(trayIcon!!)
 
-            println("[Notifier] ✅ 托盘图标已创建")
+            println("[Notifier] Tray icon created")
         } catch (e: Exception) {
-            println("[Notifier] ⚠️ 托盘初始化失败: ${e.message}")
+            println("[Notifier] Tray init failed: ${e.message}")
         }
     }
 

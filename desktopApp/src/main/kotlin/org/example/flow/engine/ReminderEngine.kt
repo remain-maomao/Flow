@@ -46,7 +46,7 @@ class ReminderEngine(
 
     /** 首次启动引擎（无条件启动计时器，不检查模式是否变化） */
     fun start() {
-        println("[ReminderEngine] 引擎启动，模式: $currentMode，倍速: ${timeScale}x")
+        println("[ReminderEngine] Engine started, mode=$currentMode, timeScale=${timeScale}x")
         restartTimers()
     }
 
@@ -54,7 +54,7 @@ class ReminderEngine(
     fun onModeChanged(newMode: Mode) {
         if (newMode == currentMode) return
         currentMode = newMode
-        println("[ReminderEngine] 模式切换: $currentMode")
+        println("[ReminderEngine] Mode changed: $currentMode")
         restartTimers()
     }
 
@@ -62,7 +62,7 @@ class ReminderEngine(
     fun updateTimeScale(newScale: Long) {
         if (newScale <= 0) return
         timeScale = newScale
-        println("[ReminderEngine] 时间倍速: ${newScale}x")
+        println("[ReminderEngine] TimeScale changed: ${newScale}x")
         restartTimers()
     }
 
@@ -73,7 +73,7 @@ class ReminderEngine(
     fun triggerNow(): ReminderRule {
         val rules = currentRules()
         val rule = rules.first()
-        println("[ReminderEngine] 手动触发: ${rule.message}")
+        println("[ReminderEngine] Manual trigger: ${rule.message}")
         onReminder(rule)
         return rule
     }
@@ -116,7 +116,7 @@ class ReminderEngine(
                         delay(1) // 倍速太高时至少等 1ms
                     }
                     if (isActive) {
-                        println("[ReminderEngine] ⏰ 提醒触发: ${rule.message}")
+                        println("[ReminderEngine] Reminder fired: ${rule.message}")
                         onReminder(rule)
                     }
                 }

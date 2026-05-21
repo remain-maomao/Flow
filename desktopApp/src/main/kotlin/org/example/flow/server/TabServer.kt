@@ -21,29 +21,29 @@ class TabServer : WebSocketServer(InetSocketAddress(9527)) {
     val messages: SharedFlow<BrowserMessage> = _messages
 
     override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
-        println("[TabServer] ✅ 浏览器已连接: ${conn.remoteSocketAddress}")
+        println("[TabServer] Browser connected: ${conn.remoteSocketAddress}")
     }
 
     override fun onMessage(conn: WebSocket, message: String) {
         try {
             val msg = json.decodeFromString<BrowserMessage>(message)
-            println("[TabServer] 📨 收到: domain=${msg.domain}, title=${msg.title}")
+            println("[TabServer] Received: domain=${msg.domain}, title=${msg.title}")
             _messages.tryEmit(msg)
         } catch (e: Exception) {
-            println("[TabServer] ⚠️ 消息解析失败: ${e.message}")
+            println("[TabServer] Parse error: ${e.message}")
         }
     }
 
     override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
-        println("[TabServer] 🔌 浏览器已断开: $reason")
+        println("[TabServer] Browser disconnected: $reason")
     }
 
     override fun onError(conn: WebSocket?, ex: Exception) {
-        println("[TabServer] ❌ 错误: ${ex.message}")
+        println("[TabServer] Error: ${ex.message}")
     }
 
     override fun onStart() {
-        println("[TabServer] 🚀 WebSocket 服务已启动: ws://localhost:9527")
+        println("[TabServer] Server started: ws://localhost:9527")
     }
 
     /** 启动服务端，端口占用时打印警告但不崩溃 */
@@ -51,7 +51,7 @@ class TabServer : WebSocketServer(InetSocketAddress(9527)) {
         try {
             start()
         } catch (e: Exception) {
-            println("[TabServer] ⚠️ 启动失败（端口可能被占用）: ${e.message}")
+            println("[TabServer] Start failed: ${e.message}")
         }
     }
 }

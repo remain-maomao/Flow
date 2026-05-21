@@ -47,7 +47,7 @@ fun main() = application {
     // 异步初始化：扩展安装先于服务启动，失败不崩溃
     LaunchedEffect(Unit) {
         ExtensionInstaller.ensureInstalled()
-        println("[main] 扩展目录: ${extensionDir.absolutePath}")
+        println("[main] Extension dir: ${extensionDir.absolutePath}")
     }
 
     // 启动 WebSocket 服务端

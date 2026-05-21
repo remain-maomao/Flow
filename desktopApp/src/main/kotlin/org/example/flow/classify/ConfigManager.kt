@@ -11,20 +11,31 @@ object ConfigManager {
 
     private val configDir = File(System.getProperty("user.home"), ".flow")
     private val configFile = File(configDir, "config.json")
-    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
+    private val json = Json {
+        prettyPrint = true
+        ignoreUnknownKeys = true
+        encodeDefaults = true  // 确保默认值也被写入 JSON
+    }
 
     /** 加载配置，文件不存在时返回默认值并自动创建 */
     fun load(): AppConfig {
+        println("[ConfigManager] Loading config...")
         return try {
             if (configFile.exists()) {
-                json.decodeFromString<AppConfig>(configFile.readText())
+                val content = configFile.readText()
+                println("[ConfigManager] File exists, size=${content.length}")
+                val cfg = json.decodeFromString<AppConfig>(content)
+                println("[ConfigManager] Loaded: domains=${cfg.entertainmentDomains.size}, apps=${cfg.entertainmentApps.size}")
+                cfg
             } else {
+                println("[ConfigManager] File not found, creating defaults")
                 val default = AppConfig()
                 save(default)
                 default
             }
         } catch (e: Exception) {
-            println("[ConfigManager] ⚠️ 加载失败: ${e.message}，使用默认值")
+            println("[ConfigManager] Load failed: ${e.message}")
+            e.printStackTrace()
             AppConfig()
         }
     }
@@ -33,10 +44,13 @@ object ConfigManager {
     fun save(config: AppConfig) {
         try {
             if (!configDir.exists()) configDir.mkdirs()
-            configFile.writeText(json.encodeToString(AppConfig.serializer(), config))
-            println("[ConfigManager] ✅ 配置已保存")
+            val jsonStr = json.encodeToString(AppConfig.serializer(), config)
+            println("[ConfigManager] Writing JSON (${jsonStr.length} bytes): domains=${config.entertainmentDomains.size}, apps=${config.entertainmentApps.size}")
+            configFile.writeText(jsonStr)
+            println("[ConfigManager] Saved to ${configFile.absolutePath}")
         } catch (e: Exception) {
-            println("[ConfigManager] ⚠️ 保存失败: ${e.message}")
+            println("[ConfigManager] Save failed: ${e.message}")
+            e.printStackTrace()
         }
     }
 }

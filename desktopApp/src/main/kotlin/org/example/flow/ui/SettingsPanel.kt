@@ -22,7 +22,6 @@ fun SettingsPanel(onClose: () -> Unit) {
     var config by remember { mutableStateOf(ConfigManager.load()) }
     var newDomain by remember { mutableStateOf("") }
     var newApp by remember { mutableStateOf("") }
-    var saved by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -58,6 +57,8 @@ fun SettingsPanel(onClose: () -> Unit) {
                             config = config.copy(
                                 entertainmentDomains = config.entertainmentDomains - domain,
                             )
+                            ConfigManager.save(config)
+                            ModeClassifier.reload()
                         }) {
                             Text("✕", color = MaterialTheme.colorScheme.error)
                         }
@@ -82,6 +83,8 @@ fun SettingsPanel(onClose: () -> Unit) {
                     if (d.isNotEmpty() && d !in config.entertainmentDomains) {
                         config = config.copy(entertainmentDomains = config.entertainmentDomains + d)
                         newDomain = ""
+                        ConfigManager.save(config)
+                        ModeClassifier.reload()
                     }
                 }) {
                     Text("添加")
@@ -131,6 +134,8 @@ fun SettingsPanel(onClose: () -> Unit) {
                     if (a.isNotEmpty() && a !in config.entertainmentApps) {
                         config = config.copy(entertainmentApps = config.entertainmentApps + a)
                         newApp = ""
+                        ConfigManager.save(config)
+                        ModeClassifier.reload()
                     }
                 }) {
                     Text("添加")
@@ -139,23 +144,16 @@ fun SettingsPanel(onClose: () -> Unit) {
 
             Spacer(Modifier.height(12.dp))
 
-            // ── 保存按钮 ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                OutlinedButton(onClick = {
-                    config = AppConfig() // 恢复默认
-                }) {
-                    Text("恢复默认")
-                }
-                Button(onClick = {
+            // ── 恢复默认 ──
+            OutlinedButton(
+                onClick = {
+                    config = AppConfig()
                     ConfigManager.save(config)
                     ModeClassifier.reload()
-                    saved = true
-                }) {
-                    Text(if (saved) "✅ 已保存" else "💾 保存")
-                }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Restore Defaults")
             }
         }
     }

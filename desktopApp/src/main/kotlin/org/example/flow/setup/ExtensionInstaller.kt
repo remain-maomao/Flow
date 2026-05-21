@@ -35,9 +35,9 @@ object ExtensionInstaller {
             // 总是重写文件，确保内容是最新的
             Files.writeString(userExtensionDir.toPath().resolve("manifest.json"), MANIFEST_JSON)
             Files.writeString(userExtensionDir.toPath().resolve("background.js"), BACKGROUND_JS)
-            println("[ExtensionInstaller] ✅ 扩展已写入: ${userExtensionDir.absolutePath}")
+            println("[ExtensionInstaller] Written to: ${userExtensionDir.absolutePath}")
         } catch (e: Exception) {
-            println("[ExtensionInstaller] ⚠️ 扩展写入失败: ${e.message}")
+            println("[ExtensionInstaller] Write failed: ${e.message}")
             // 即使写入失败也返回路径，用户可手动创建
         }
         return userExtensionDir
