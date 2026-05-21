@@ -185,6 +185,35 @@ fun SettingsPanel(onClose: () -> Unit) {
 
             Spacer(Modifier.height(12.dp))
 
+            // ── Emoji Folder ──
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            Text("Emoji Folder (for notifications)", style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = config.emojiFolder,
+                    onValueChange = { newVal ->
+                        config = config.copy(emojiFolder = newVal)
+                        ConfigManager.save(config)
+                    },
+                    placeholder = { Text("e.g. C:\\Users\\remai\\.flow\\emojis") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = {
+                    config = config.copy(emojiFolder = "")
+                    ConfigManager.save(config)
+                }) {
+                    Text("Clear")
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
             // ── 恢复默认 ──
             OutlinedButton(
                 onClick = {
