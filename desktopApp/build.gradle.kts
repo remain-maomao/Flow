@@ -27,9 +27,15 @@ compose.desktop {
         jvmArgs += "-Dfile.encoding=UTF-8"
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "org.example.flow"
-            packageVersion = "1.0.0"
+            targetFormats(TargetFormat.Msi)
+            packageName = "Flow"
+            packageVersion = "0.1.0"
+            vendor = "Flow"
+            description = "Flow - 专注助手，监测工作/娱乐模式并智能提醒"
+            windows {
+                menuGroup = "Flow"
+                upgradeUuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            }
         }
     }
 }
