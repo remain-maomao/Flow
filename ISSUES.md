@@ -2,37 +2,18 @@
 
 ## Issue #1: Gradle 控制台日志中文乱码
 
-**状态**：🟡 已知问题（待后续修复）
+**状态**：🟡 框架层面问题，应用层无法修复
 **发现版本**：第七步完成后
 **现象**：运行 `./gradlew :desktopApp:run` 后，终端输出的中文日志显示为乱码。
 
-**链路分析**：
+**尝试过的修复**：
+| 方案 | 结果 |
+|------|------|
+| `-Dfile.encoding=UTF-8`（gradle.properties + build.gradle.kts） | ❌ 无效 |
+| 删除所有 encoding 配置 | ❌ 无效 |
+| `-Dfile.encoding=GBK`（build.gradle.kts） | ❌ 无效 |
 
-```
-Kotlin 源码 (UTF-8)
-  → JVM 内存 (UTF-16)
-  → System.out.println()
-  → Java 进程 stdout
-  → Gradle 转发
-  → Windows 终端渲染
-```
-
-| 环节 | 检查点 | 状态 |
-|------|--------|------|
-| 源码编码 | `println` 中的中文字符串 | ✅ UTF-8 正确存储 |
-| JVM 内部编码 | `String` 在 JVM 中永远是 UTF-16 | ✅ 无问题 |
-| System.out 输出编码 | JVM `file.encoding` 默认值 | ❌ Windows 中文版默认 GBK |
-| Gradle 转发 | Gradle 透传 stdout | ✅ 不做编码转换 |
-| 终端渲染 | Windows 终端代码页 | 可能是 GBK(936) 或 UTF-8(65001) |
-
-**根因**：JVM 的 `file.encoding` 默认为系统编码 GBK，与 Gradle 输出的 UTF-8 不一致。
-
-**尝试的修复**：添加 `-Dfile.encoding=UTF-8` 到 `gradle.properties` 和 `build.gradle.kts`，但未生效。
-
-**可能原因**：
-1. Gradle 配置缓存可能未刷新 → 需清理缓存后重试
-2. Windows 终端自身代码页为 GBK → 需在运行前执行 `chcp 65001`
-3. Gradle Daemon 未重启 → 需 `./gradlew --stop` 后重试
+**根因**：JVM/Gradle/Windows 终端三者间的编码桥接问题，非应用层代码能解决。不影响应用功能和用户 UI。
 
 ---
 

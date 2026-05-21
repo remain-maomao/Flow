@@ -55,7 +55,9 @@
 
 ---
 
-**最终验收**：右键托盘图标 → 菜单文字清晰可读（中文或英文均可）
+**最终验收**：✅ 右键托盘图标 → 菜单显示 "Show Window" / "Exit"，英文正常渲染
+
+**根因确认**：Compose Multiplatform 框架 Bug（[GitHub #4486](https://github.com/JetBrains/compose-multiplatform/issues/4486)），等待框架修复后改回中文。
 
 ---
 

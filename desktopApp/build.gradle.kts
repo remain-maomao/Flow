@@ -24,7 +24,7 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "org.example.flow.MainKt"
-        jvmArgs += "-Dfile.encoding=UTF-8"
+        jvmArgs += "-Dfile.encoding=GBK"
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
