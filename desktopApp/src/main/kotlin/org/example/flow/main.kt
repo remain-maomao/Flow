@@ -86,7 +86,7 @@ fun main() = application {
         visible = isVisible,
         title = "Flow",
         icon = windowIcon,
-        state = rememberWindowState(width = 500.dp, height = 640.dp),
+        state = rememberWindowState(width = 680.dp, height = 500.dp),
     ) {
         FlowApp(
             tabServer = tabServer,
