@@ -13,7 +13,10 @@ import java.net.InetSocketAddress
  * WebSocket 服务端，监听 localhost:9527。
  * 接收浏览器扩展发来的标签页信息，通过 SharedFlow 暴露给 UI 层。
  */
-class TabServer : WebSocketServer(InetSocketAddress(9527)) {
+class TabServer(
+    private val onConnected: () -> Unit = {},
+    private val onDisconnected: () -> Unit = {},
+) : WebSocketServer(InetSocketAddress(9527)) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -22,6 +25,7 @@ class TabServer : WebSocketServer(InetSocketAddress(9527)) {
 
     override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
         println("[TabServer] Browser connected: ${conn.remoteSocketAddress}")
+        onConnected()
     }
 
     override fun onMessage(conn: WebSocket, message: String) {
@@ -36,6 +40,7 @@ class TabServer : WebSocketServer(InetSocketAddress(9527)) {
 
     override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
         println("[TabServer] Browser disconnected: $reason")
+        onDisconnected()
     }
 
     override fun onError(conn: WebSocket?, ex: Exception) {

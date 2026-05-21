@@ -19,6 +19,7 @@ import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
     var isVisible by remember { mutableStateOf(true) }
+    var extensionConnected by remember { mutableStateOf(false) }
 
     val notifier = remember {
         Notifier(
@@ -43,7 +44,12 @@ fun main() = application {
         ).also { engineHolder[0] = it }
     }
 
-    val tabServer = remember { TabServer() }
+    val tabServer = remember {
+        TabServer(
+            onConnected = { extensionConnected = true },
+            onDisconnected = { extensionConnected = false },
+        )
+    }
 
     // 扩展目录（使用用户目录，确保可写）
     val extensionDir = remember { ExtensionInstaller.getInstallDir() }
@@ -93,6 +99,7 @@ fun main() = application {
             reminderEngine = reminderEngine,
             notifier = notifier,
             extensionDir = extensionDir,
+            extensionConnected = extensionConnected,
         )
     }
 }

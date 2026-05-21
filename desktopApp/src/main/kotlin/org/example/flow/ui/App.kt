@@ -32,10 +32,12 @@ fun FlowApp(
     reminderEngine: ReminderEngine,
     notifier: Notifier,
     extensionDir: File,
+    extensionConnected: Boolean,
 ) {
     var activeWindow by remember { mutableStateOf(ActiveWindow("(waiting...)", "(waiting...)", 0L)) }
     var browserMessage by remember { mutableStateOf<BrowserMessage?>(null) }
-    var extensionConnected by remember { mutableStateOf(false) }
+    // Latest browser tab data (used for classification when foreground window is a browser)
+    var latestBrowserMessage: BrowserMessage? = null
     var currentMode by remember { mutableStateOf(Mode.WORK) }
 
     // Dev mode
@@ -65,7 +67,7 @@ fun FlowApp(
     LaunchedEffect(Unit) {
         tabServer.messages.collectLatest { msg ->
             browserMessage = msg
-            extensionConnected = true
+            latestBrowserMessage = msg
         }
     }
 
@@ -75,24 +77,29 @@ fun FlowApp(
         if (!extensionConnected) showSetupGuide = true
     }
 
+    // ── Classification flow (single entry point, no merge) ──
+    val classificationFlow = remember {
+        kotlinx.coroutines.flow.MutableSharedFlow<ClassificationResult>(extraBufferCapacity = 4)
+    }
+
     LaunchedEffect(Unit) {
-        // Browser processes whose windows should not participate in mode detection
-        // when the extension is connected (extension handles browser classification)
         val browserProcesses = setOf("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
 
-        val windowResults = WindowMonitor.observeActiveWindow()
-            .filter { window ->
-                if (extensionConnected && window.processName.lowercase() in browserProcesses) {
-                    return@filter false
-                }
-                true
-            }
-            .map { ModeClassifier.classifyWindow(it) }
-        val browserResults = tabServer.messages
-            .map { ModeClassifier.classifyBrowser(it) }
-        val merged: kotlinx.coroutines.flow.Flow<ClassificationResult> = merge(windowResults, browserResults)
+        WindowMonitor.observeActiveWindow().collect { window ->
+            val isBrowser = window.processName.lowercase() in browserProcesses
 
-        modeDetector.detect(merged).collectLatest { mode ->
+            val browserMsg = latestBrowserMessage
+            val result = if (isBrowser && extensionConnected && browserMsg != null) {
+                ModeClassifier.classifyBrowser(browserMsg)
+            } else {
+                ModeClassifier.classifyWindow(window)
+            }
+            classificationFlow.tryEmit(result)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        modeDetector.detect(classificationFlow).collectLatest { mode ->
             if (mode != currentMode) {
                 currentMode = mode
                 reminderEngine.onModeChanged(mode)
