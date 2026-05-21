@@ -314,16 +314,105 @@ LaunchedEffect(Unit) { tabServer.start() }
 
 ---
 
-### 第五步：模式分类器
+### ✅ 第五步：模式分类器 【已完成】
 
-**目标**：根据窗口信息判断工作/娱乐模式（默认工作，娱乐黑名单）。
+**目标**：接收 `ActiveWindow` + `BrowserMessage`，输出 `Mode.WORK` 或 `Mode.ENTERTAINMENT`。默认工作模式，只维护娱乐黑名单。5 秒防抖避免快速抖动。
 
-**关键任务**：
-- 娱乐域名黑名单
-- 娱乐应用标题黑名单
-- 5 秒防抖逻辑
+---
 
-**验证方式**：打开 B 站/YouTube 后 5 秒切换娱乐模式，切回 IDE 后 5 秒恢复工作模式。
+#### 5.1 创建 `Mode` 枚举 + `ClassificationResult` 数据类
+
+**产出文件**：
+- `model/Mode.kt`
+- `model/ClassificationResult.kt`
+
+**具体代码**：
+```kotlin
+enum class Mode { WORK, ENTERTAINMENT }
+
+data class ClassificationResult(
+    val mode: Mode,
+    val matchedKeyword: String?,  // 命中的娱乐关键词，调试用
+    val timestamp: Long,
+)
+```
+
+**验���**：`./gradlew :desktopApp:compileKotlin` 通过
+
+---
+
+#### 5.2 编写 `ModeClassifier`
+
+**产出文件**：`classify/ModeClassifier.kt`
+
+**核心逻辑（纯函数，无状态）**：
+
+```kotlin
+object ModeClassifier {
+    // 娱乐域名黑名单（浏览器扩展发来的 domain 字段）
+    private val entertainmentDomains = listOf(
+        "youtube.com", "bilibili.com", "netflix.com",
+        "iqiyi.com", "douyin.com", "twitch.tv",
+        "douyu.com", "huya.com", "reddit.com",
+        "twitter.com", "x.com", "weibo.com",
+        "zhihu.com", "steampowered.com", "epicgames.com",
+    )
+
+    // 娱乐应用标题关键词（桌面窗口标题匹配）
+    private val entertainmentTitleKeywords = listOf(
+        "steam", "epic games", "riot", "原神", "崩坏",
+        "起点", "晋江", "漫画", "bilibili", "抖音",
+    )
+
+    fun classify(activeWindow: ActiveWindow): ClassificationResult
+    fun classifyBrowser(msg: BrowserMessage): ClassificationResult
+}
+```
+
+**分类优先级**：
+1. 如果有 BrowserMessage → 用 `domain` 匹配 `entertainmentDomains`
+2. 否则用桌面窗口 `title` 匹配 `entertainmentTitleKeywords`
+3. 都不匹配 → `Mode.WORK`
+
+**验证**：`./gradlew :desktopApp:compileKotlin` 通过
+
+---
+
+#### 5.3 编写 `ModeDetector` — 带 5 秒防抖
+
+**产出文件**：`classify/ModeDetector.kt`
+
+**核心逻辑**：
+- 接收 `Flow<ClassificationResult>` → 输出稳定的 `Flow<Mode>`
+- 防抖：只有当当前分类连续 5 秒都是 ENTERTAINMENT 且当前模式是 WORK 时，才切换到 ENTERTAINMENT
+- 同理：连续 5 秒都是 WORK 且当前模式是 ENTERTAINMENT 时，才切回 WORK
+- 内部维护 `lastEntertainmentTime` 和 `lastWorkTime` 两个时间戳
+
+```kotlin
+class ModeDetector(private val debounceMs: Long = 5000L) {
+    fun detect(input: Flow<ClassificationResult>): Flow<Mode>
+}
+```
+
+**验证**：`./gradlew :desktopApp:compileKotlin` 通过
+
+---
+
+#### 5.4 集成到 UI
+
+**修改文件**：`ui/App.kt`
+
+**具体变更**：
+- 在 `FlowApp()` 中创建 `val modeDetector = remember { ModeDetector() }`
+- 将 `WindowMonitor` 和 `tabServer.messages` 合并为统一的 `ClassificationResult` 流
+- 经过 `modeDetector.detect()` 得到稳定 `Mode`
+- UI 新增一行显示当前模式，WORK 显示绿色，ENTERTAINMENT 显示红色
+
+**验收标准（手动操作）**：
+1. 默认显示「工作模式」（绿色）
+2. 浏览器打开 bilibili.com → 等待 5 秒 → UI 变为「娱乐模式」（红色），显示匹配关键词 `bilibili.com`
+3. 关闭 bilibili 标签页，切回 VS Code → 等待 5 秒 → UI 恢复「工作模式」
+4. 5 秒内快速来回切换 → 模式不抖动
 
 ---
 
