@@ -46,6 +46,53 @@ fun SettingsPanel(onClose: () -> Unit) {
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // ── Whitelist URLs (override blacklist) ──
+            Text("Whitelist URLs (always Work)", style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(4.dp))
+            config.whitelistUrls.forEach { pattern ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(pattern, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        config = config.copy(whitelistUrls = config.whitelistUrls - pattern)
+                        ConfigManager.save(config); ModeClassifier.reload()
+                    }) {
+                        Text("X", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                var newWhitelist by remember { mutableStateOf("") }
+                OutlinedTextField(
+                    value = newWhitelist,
+                    onValueChange = { newWhitelist = it },
+                    placeholder = { Text("e.g. youtube.com/@freecodecamp") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = {
+                    val w = newWhitelist.trim()
+                    if (w.isNotEmpty() && w !in config.whitelistUrls) {
+                        config = config.copy(whitelistUrls = config.whitelistUrls + w)
+                        newWhitelist = ""
+                        ConfigManager.save(config); ModeClassifier.reload()
+                    }
+                }) {
+                    Text("Add")
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(4.dp))
+
             // ── 娱乐域名 ──
             Text("Entertainment Domains", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(4.dp))

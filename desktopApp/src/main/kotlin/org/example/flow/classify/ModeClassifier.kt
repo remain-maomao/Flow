@@ -27,14 +27,25 @@ object ModeClassifier {
     /** 对浏览器扩展消息分类 */
     fun classifyBrowser(msg: BrowserMessage): ClassificationResult {
         val config = getConfig()
-        val keyword = config.entertainmentDomains.firstOrNull { domain ->
+
+        // 1. 白名单优先：URL 包含白名单关键词 → 强制 WORK
+        val whitelistHit = config.whitelistUrls.firstOrNull { pattern ->
+            msg.url.contains(pattern, ignoreCase = true)
+        }
+        if (whitelistHit != null) {
+            return ClassificationResult(Mode.WORK, "whitelist:$whitelistHit", System.currentTimeMillis())
+        }
+
+        // 2. 黑名单匹配
+        val blackHit = config.entertainmentDomains.firstOrNull { domain ->
             msg.domain.contains(domain, ignoreCase = true)
         }
-        return if (keyword != null) {
-            ClassificationResult(Mode.ENTERTAINMENT, keyword, System.currentTimeMillis())
-        } else {
-            ClassificationResult(Mode.WORK, null, System.currentTimeMillis())
+        if (blackHit != null) {
+            return ClassificationResult(Mode.ENTERTAINMENT, blackHit, System.currentTimeMillis())
         }
+
+        // 3. 默认工作
+        return ClassificationResult(Mode.WORK, null, System.currentTimeMillis())
     }
 
     /** 对桌面窗口信息分类 */

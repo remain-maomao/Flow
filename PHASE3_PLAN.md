@@ -96,40 +96,65 @@
 
 ---
 
-### Phase 3.3：分类精度提升（P1）
+### ✅ Phase 3.3：白名单功能（P1）【已完成】
 
-#### 3.3.1 白名单功能（URL 路径匹配）
+#### 3.3.1 URL 路径白名单
 
-**问题**：YouTube/B站 有些频道是学习内容（如教程、课程），应识别为工作模式。目前只看域名，无法区分。
+**目标**：娱乐站的特定学习频道强制识别为工作模式。
 
-**方案**：
-- `AppConfig` 新增 `whitelistUrls: List<String>`
-- 白名单匹配规则：URL 包含指定字符串 → 强制 WORK
-- 优先级：白名单 > 黑名单
-- 预置示例：
-  - `youtube.com/@freecodecamp`
-  - `youtube.com/@Fireship`
-  - `bilibili.com/v/education`
-- 设置面板新增白名单编辑区
+**优先级规则**：白名单 > 黑名单
 
-**数据流**：
-```
-浏览器 URL → 白名单匹配 → 命中 → WORK
-           → 未命中 → 黑名单匹配 → 命中 → ENTERTAINMENT
-                                   → 未命中 → WORK
-```
+**子步骤**：
 
-**修改文件**：
-- `classify/ConfigManager.kt` — AppConfig 加字段
-- `classify/ModeClassifier.kt` — 白名单优先匹配
-- `ui/SettingsPanel.kt` — 新增白名单编辑
+##### 步骤 A：AppConfig 增加 whitelistUrls 字段
+
+**修改文件**：`classify/ConfigManager.kt`
+
+**操作**：
+- `AppConfig` 新增 `val whitelistUrls: List<String> = listOf()`
+- 预置示例注释（不强制填入，用户自行添加）
+
+**验证**：编译通过，config.json 自动包含 `whitelistUrls: []`
+
+---
+
+##### 步骤 B：ModeClassifier 白名单优先匹配
+
+**修改文件**：`classify/ModeClassifier.kt`
+
+**操作**：
+- `classifyBrowser()` 逻辑改为：
+  1. 先检查 URL 是否命中 whitelistUrls（`msg.url.contains(pattern, ignoreCase = true)`）→ WORK
+  2. 再检查 domain 是否命中 entertainmentDomains → ENTERTAINMENT
+  3. 都不命中 → WORK
+
+**验证**：编译通过
+
+---
+
+##### 步骤 C：SettingsPanel 新增白名单编辑区
+
+**修改文件**：`ui/SettingsPanel.kt`
+
+**操作**：
+- 在域名列表上方新增「Whitelist URLs」区域
+- 列表 + 输入框 + 添加/删除按钮（与域名、应用相同的模式）
+- placeholder 示例：`youtube.com/@freecodecamp`
+- 自动保存（与域名、应用一致的逻辑）
+
+**验证**：编译通过，Settings Tab 出现白名单编辑区
+
+---
+
+##### 步骤 D：端到端测试
 
 **验证**：
 | 操作 | 预期 |
 |------|------|
-| 添加白名单 `youtube.com/@freecodecamp` | 访问该频道 → 工作模式 |
-| 访问其他 YouTube 视频 | 仍是娱乐模式 |
+| 添加白名单 `youtube.com/@freecodecamp` | 访问该频道 → 工作模式（绿色） |
+| 访问其他 YouTube 视频 | 仍是娱乐模式（红色） |
 | 删除白名单项 | 该频道恢复娱乐模式 |
+| 关闭重开 | 白名单项持久保留 |
 
 ---
 

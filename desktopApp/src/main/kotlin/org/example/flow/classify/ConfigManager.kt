@@ -62,6 +62,7 @@ object ConfigManager {
  */
 @Serializable
 data class AppConfig(
+    val whitelistUrls: List<String> = listOf(),
     val entertainmentDomains: List<String> = DEFAULT_DOMAINS,
     val entertainmentApps: List<String> = DEFAULT_APPS,
     val developerMode: Boolean = false,
