@@ -27,36 +27,44 @@ object ModeClassifier {
     /** 对浏览器扩展消息分类 */
     fun classifyBrowser(msg: BrowserMessage): ClassificationResult {
         val config = getConfig()
+        val url = msg.url
+        val domain = msg.domain
 
-        // 1. 白名单优先：URL 包含白名单关键词 → 强制 WORK
+        // 1. Whitelist check
         val whitelistHit = config.whitelistUrls.firstOrNull { pattern ->
-            msg.url.contains(pattern, ignoreCase = true)
+            url.contains(pattern, ignoreCase = true)
         }
         if (whitelistHit != null) {
+            println("[Classifier] BROWSER url=$url -> WHITELIST hit='$whitelistHit' -> WORK")
             return ClassificationResult(Mode.WORK, "whitelist:$whitelistHit", System.currentTimeMillis())
         }
 
-        // 2. 黑名单匹配
-        val blackHit = config.entertainmentDomains.firstOrNull { domain ->
-            msg.domain.contains(domain, ignoreCase = true)
+        // 2. Blacklist check
+        val blackHit = config.entertainmentDomains.firstOrNull { d ->
+            domain.contains(d, ignoreCase = true)
         }
         if (blackHit != null) {
+            println("[Classifier] BROWSER url=$url domain=$domain -> BLACKLIST hit='$blackHit' -> ENTERTAINMENT")
             return ClassificationResult(Mode.ENTERTAINMENT, blackHit, System.currentTimeMillis())
         }
 
-        // 3. 默认工作
+        // 3. Default
+        println("[Classifier] BROWSER url=$url domain=$domain -> default -> WORK")
         return ClassificationResult(Mode.WORK, null, System.currentTimeMillis())
     }
 
     /** 对桌面窗口信息分类 */
     fun classifyWindow(window: ActiveWindow): ClassificationResult {
         val config = getConfig()
+        val title = window.title
         val keyword = config.entertainmentApps.firstOrNull { keyword ->
-            window.title.contains(keyword, ignoreCase = true)
+            title.contains(keyword, ignoreCase = true)
         }
         return if (keyword != null) {
+            println("[Classifier] WINDOW title='$title' process=${window.processName} -> HIT '$keyword' -> ENTERTAINMENT")
             ClassificationResult(Mode.ENTERTAINMENT, keyword, System.currentTimeMillis())
         } else {
+            println("[Classifier] WINDOW title='$title' process=${window.processName} -> no match -> WORK")
             ClassificationResult(Mode.WORK, null, System.currentTimeMillis())
         }
     }

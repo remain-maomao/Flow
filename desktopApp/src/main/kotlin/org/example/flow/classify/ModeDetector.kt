@@ -30,25 +30,27 @@ class ModeDetector(private val debounceMs: Long = 5_000L) {
             val now = System.currentTimeMillis()
 
             if (result.mode == currentMode) {
-                // 与当前模式一致 → 重置异模式计时
+                // Same as current → reset opposite streak
                 streakTargetMode = null
                 return@collect
             }
 
-            // 与当前模式不同 → 开始或延续异模式计时
+            // Different from current → start or continue opposite streak
             if (streakTargetMode == result.mode) {
-                // 延续同一异模式
+                // Continuing same opposite streak
                 val elapsed = now - streakStartMs
                 if (elapsed >= debounceMs) {
-                    // 防抖时间到，切换模式
+                    // Debounce passed, switch mode
                     currentMode = result.mode
                     streakTargetMode = null
+                    println("[Detector] SWITCH -> ${result.mode} (debounced ${elapsed}ms, keyword=${result.matchedKeyword})")
                     emit(currentMode)
                 }
             } else {
-                // 新异模式出现（或首次检测到异模式）
+                // New opposite streak
                 streakTargetMode = result.mode
                 streakStartMs = now
+                println("[Detector] Streak start: ${result.mode} (keyword=${result.matchedKeyword})")
             }
         }
     }
