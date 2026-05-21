@@ -119,16 +119,121 @@ data class ActiveWindow(
 
 ---
 
-### 第三步：浏览器扩展开发
+### ✅ 第三步：浏览器扩展开发 【已完成】
 
-**目标**：Chrome 扩展监听标签页变化，通过 WebSocket 发送 URL/标题/域名给桌面端。
+**目标**：Chrome 扩展监听标签页变化，通过 WebSocket 发送 URL/标题/域名给桌面应用。
 
-**关键任务**：
-- Manifest V3 配置
-- Service Worker 监听 tabs API
-- WebSocket 客户端连接 ws://localhost:9527
+> 注意：扩展是独立组件，不参与 Gradle 编译。验证全部通过浏览器手动操作。
 
-**验证方式**：浏览器加载扩展，chrome://extensions 查看日志，切换标签页有输出。
+---
+
+#### 3.1 创建 `extension/manifest.json`
+
+**产出文件**：`extension/manifest.json`
+
+**具体内容（逐字段说明）**：
+```json
+{
+  "manifest_version": 3,          // Chrome 要求 V3
+  "name": "Flow Monitor",
+  "version": "0.1.0",
+  "description": "将浏览器标签页信息发送给 Flow 桌面应用",
+  "permissions": ["tabs"],        // 允许读取所有标签页 URL
+  "host_permissions": ["<all_urls>"],  // 允许读取任意域名
+  "background": {
+    "service_worker": "background.js"  // 后台 Service Worker
+  }
+}
+```
+
+**验证**：
+- 打开 Chrome → `chrome://extensions/` → 开启「开发者模式」→ 「加载已解压的扩展」→ 选择 `extension/` 目录
+- 扩展出现在列表中，无红色错误提示
+
+---
+
+#### 3.2 编写 `background.js` — 监听标签页变化
+
+**产出文件**：`extension/background.js`
+
+**具体逻辑（两段监听器）**：
+
+```js
+// 监听器 1：用户切换到另一个标签页
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  chrome.tabs.get(activeInfo.tabId, (tab) => {
+    logTabInfo(tab);
+    sendToServer(formatMessage(tab));
+  });
+});
+
+// 监听器 2：当前标签页的 URL 或标题发生变化
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url || changeInfo.title) {
+    logTabInfo(tab);
+    sendToServer(formatMessage(tab));
+  }
+});
+```
+
+**`formatMessage(tab)` 产出格式**：
+```json
+{
+  "type": "tab_change",
+  "url": "https://www.bilibili.com/video/BV1xx411c7mD",
+  "title": "【4K】xxx - bilibili",
+  "domain": "www.bilibili.com"
+}
+```
+
+**验证**：
+- 加载扩展后 → 打开 `chrome://extensions/` → 点击「Service Worker」链接 → 打开 DevTools Console
+- 切换标签页 / 刷新页面 → Console 打印：`[Flow] tab_change: { url: "...", title: "...", domain: "..." }`
+
+---
+
+#### 3.3 加入 WebSocket 客户端
+
+**产出文件**：`extension/background.js`（在 3.2 的基础上增加）
+
+**具体逻辑**：
+
+```js
+let ws = null;
+
+function connectWebSocket() {
+  ws = new WebSocket('ws://localhost:9527');
+  ws.onopen = () => console.log('[Flow] WebSocket 已连接');
+  ws.onclose = () => {
+    console.log('[Flow] WebSocket 断开，3 秒后重连...');
+    setTimeout(connectWebSocket, 3000);
+  };
+  ws.onerror = (err) => console.warn('[Flow] WebSocket 错误 (桌面端可能未启动):', err);
+}
+
+function sendToServer(message) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message));
+    console.log('[Flow] 已发送:', message);
+  } else {
+    console.log('[Flow] WebSocket 未连接，跳过发送');
+  }
+}
+
+// 启动时立即连接
+connectWebSocket();
+```
+
+**验证**：
+- 桌面端未启动 → Console 显示 `WebSocket 错误...` + `3 秒后重连...`
+- 后续第四步启动桌面 WebSocket 服务端后 → Console 自动变为 `WebSocket 已连接` + `已发送: { ... }`
+
+---
+
+**验收标准（第四步联调前可独立验证的部分）**：
+1. 扩展能加载到 Chrome，无报错 ✅
+2. 切换标签页 / URL 变化 → Service Worker Console 打印 `[Flow] tab_change: {url, title, domain}` ✅
+3. WebSocket 连接尝试发起（桌面端未启动时显示错误 + 自动重连）✅
 
 ---
 

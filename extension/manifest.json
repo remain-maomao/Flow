@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Flow Monitor",
+  "version": "0.1.0",
+  "description": "将浏览器标签页信息发送给 Flow 桌面应用，用于工作/娱乐模式判断",
+  "permissions": ["tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
