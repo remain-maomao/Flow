@@ -1,42 +1,51 @@
 package org.example.flow
 
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import org.example.flow.engine.ReminderEngine
+import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
 import org.example.flow.ui.FlowApp
 
 fun main() = application {
-    val tabServer = remember { TabServer() }
+    // 窗口可见性（关闭 → 隐藏到托盘）
+    var isVisible by remember { mutableStateOf(true) }
+
+    val notifier = remember {
+        Notifier(
+            onShowWindow = { isVisible = true },
+            onExit = { exitApplication() },
+        )
+    }
+
     val reminderEngine = remember {
         ReminderEngine(
             timeScale = 60L,
-            onReminder = { rule ->
-                // 第六步：先打印到控制台，第七步再接托盘通知
-                println("🔔 提醒: ${rule.message}  [${java.text.SimpleDateFormat("HH:mm:ss").format(java.util.Date())}]")
-            },
+            onReminder = { rule -> notifier.show("Flow", rule.message) },
         )
     }
+
+    val tabServer = remember { TabServer() }
 
     // 启动 WebSocket 服务端
     LaunchedEffect(Unit) {
         tabServer.startSafe()
     }
 
-    // 启动引擎
+    // 启动提醒引擎
     LaunchedEffect(Unit) {
         reminderEngine.start()
     }
 
     Window(
-        onCloseRequest = ::exitApplication,
+        onCloseRequest = { isVisible = false },  // 隐藏到托盘，不退出
+        visible = isVisible,
         title = "Flow - 专注助手",
-        state = rememberWindowState(width = 480.dp, height = 520.dp),
+        state = rememberWindowState(width = 480.dp, height = 540.dp),
     ) {
-        FlowApp(tabServer, reminderEngine)
+        FlowApp(tabServer, reminderEngine, notifier)
     }
 }

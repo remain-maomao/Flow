@@ -23,12 +23,13 @@ import org.example.flow.model.BrowserMessage
 import org.example.flow.model.ClassificationResult
 import org.example.flow.model.Mode
 import org.example.flow.monitor.WindowMonitor
+import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine) {
+fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine, notifier: Notifier) {
     var activeWindow by remember {
         mutableStateOf(ActiveWindow("(等待采集...)", "(等待采集...)", 0L))
     }
@@ -36,6 +37,9 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine) {
         mutableStateOf<BrowserMessage?>(null)
     }
     var currentMode by remember { mutableStateOf(Mode.WORK) }
+
+    // ── 倍速滑块状态 ──
+    var timeScale by remember { mutableStateOf(60L) }
 
     // ── UI 状态（从 ReminderEngine 收集） ──
     val elapsedVirtualMs by reminderEngine.elapsedVirtualMs.collectAsState()
@@ -57,7 +61,7 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine) {
         }
     }
 
-    // ── 模式检测 ──
+    // ── 模式检测 + 托盘图标联动 ──
     LaunchedEffect(Unit) {
         val windowResults = WindowMonitor.observeActiveWindow()
             .map { window -> ModeClassifier.classifyWindow(window) }
@@ -70,6 +74,7 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine) {
             if (mode != currentMode) {
                 currentMode = mode
                 reminderEngine.onModeChanged(mode)
+                notifier.updateIcon(mode) // 托盘图标变色
             }
         }
     }
@@ -141,6 +146,34 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine) {
                 }
             }
 
+            // ── 时间倍速滑块 ──
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("⚡ 时间倍速: ${timeScale}x", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(4.dp))
+                    Slider(
+                        value = timeScale.toFloat(),
+                        onValueChange = { newVal ->
+                            val newScale = newVal.toLong().coerceIn(1, 120)
+                            if (newScale != timeScale) {
+                                timeScale = newScale
+                                reminderEngine.updateTimeScale(newScale)
+                            }
+                        },
+                        valueRange = 1f..120f,
+                        steps = 0,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("1x (真实)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("120x (极速)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
             // ── 操作按钮 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -156,7 +189,7 @@ fun FlowApp(tabServer: TabServer, reminderEngine: ReminderEngine) {
 
             // ── 状态栏 ──
             Text(
-                "刷新: ${SimpleDateFormat("HH:mm:ss").format(Date())} | 倍速: ${60}x",
+                "刷新: ${SimpleDateFormat("HH:mm:ss").format(Date())}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

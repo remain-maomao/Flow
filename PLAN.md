@@ -516,17 +516,72 @@ fun updateTimeScale(newScale: Long) {
 
 ---
 
-### 第七步：通知与 UI 控制面板
+### ✅ 第七步：通知与 UI 控制面板 【已完成】
 
-**目标**：系统托盘 + Compose 控制面板 + 通知弹窗。
+**目标**：系统托盘通知 + 倍速滑块 + 托盘图标随模式变色 + 关闭窗口最小化到托盘。
 
-**关键任务**：
-- 系统托盘图标（颜色随模式变化）
-- 托盘气泡通知
-- 控制面板：模式、时长、倒计时、倍速滑块、手动触发
-- 关闭窗口最小化到托盘
+---
 
-**验证方式**：全部 UI 交互正常，托盘通知正常弹出。
+#### 7.1 创建 `Notifier` — 系统托盘封装
+
+**产出文件**：`notify/Notifier.kt`
+
+**具体逻辑**：
+- 初始化 AWT `SystemTray` + `TrayIcon`
+- `show(message: String)` → `trayIcon.displayMessage("Flow", message, TrayIcon.MessageType.INFO)`
+- `updateIcon(mode: Mode)` → 切换托盘图标颜色（绿色 WORK / 红色 ENTERTAINMENT）
+- 图标用程序生成的 16x16 BufferedImage（纯色圆），避免外部资源文件依赖
+- 右键菜单：「显示窗口」「退出」
+
+**验证**：编译通过，启动后托盘出现图标
+
+---
+
+#### 7.2 集成 Notifier 替代控制台 println
+
+**修改文件**：`main.kt`、`notify/Notifier.kt`
+
+**具体变更**：
+- `main.kt` 中创建 `Notifier` 实例
+- `ReminderEngine` 的 `onReminder` 回调改为调用 `notifier.show(rule.message)`
+- 模式变化时调用 `notifier.updateIcon(mode)`
+
+**验证**：提醒触发时托盘弹出气泡消息（而非仅控制台打印）
+
+---
+
+#### 7.3 添加时间倍速滑块
+
+**修改文件**：`ui/App.kt`
+
+**具体变更**：
+- 在 UI 底部新增一个 `Slider` 组件：1x ~ 120x，默认 60x
+- 拖拽时调用 `reminderEngine.updateTimeScale(newScale)`
+- 旁边显示当前倍速文字 `"${scale}x"`
+
+**验证**：拖动滑块到 120x → 倒计时速度明显加快（2 秒变 1 秒）
+
+---
+
+#### 7.4 关闭窗口最小化到托盘
+
+**修改文件**：`main.kt`
+
+**具体变更**：
+- `Window.onCloseRequest` 改为 `window.isVisible = false`（隐藏而非退出）
+- 托盘右键菜单「显示窗口」→ `window.isVisible = true`
+- 托盘右键菜单「退出」→ `exitApplication()`
+
+**验证**：点窗口 X → 窗口消失但进程不退出 → 托盘右键「显示窗口」→ 窗口恢复
+
+---
+
+**验收标准（手动操作）**：
+1. 启动后托盘出现绿色圆点图标 ✅
+2. @60x 约 15 秒后桌面右下角弹出气泡「💧 该喝水了」
+3. 打开 B 站 → 托盘图标变红色 → 约 2 秒后弹出「⏰ 已经过去 2 分钟了」
+4. 拖动倍速滑块到 120x → 提醒频率加倍
+5. 点 X → 窗口隐藏到托盘 → 右键托盘图标 → 显示窗口 / 退出
 
 ---
 
