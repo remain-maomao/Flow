@@ -6,6 +6,8 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import org.example.flow.engine.ReminderEngine
+import org.example.flow.model.Mode
+import org.example.flow.notify.NotificationPopup
 import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
 import org.example.flow.setup.ExtensionInstaller
@@ -21,11 +23,20 @@ fun main() = application {
         )
     }
 
+    // 通知弹窗状态：message + mode
+    var notification by remember { mutableStateOf<Pair<String, Mode>?>(null) }
+
+    // 使用 holder 模式避免 lambda 自引用
+    val engineHolder = remember { arrayOfNulls<ReminderEngine>(1) }
+
     val reminderEngine = remember {
         ReminderEngine(
             timeScale = 60L,
-            onReminder = { rule -> notifier.show("Flow", rule.message) },
-        )
+            onReminder = { rule ->
+                val mode = engineHolder[0]?.getCurrentMode() ?: Mode.WORK
+                notification = Pair(rule.message, mode)
+            },
+        ).also { engineHolder[0] = it }
     }
 
     val tabServer = remember { TabServer() }
@@ -47,6 +58,16 @@ fun main() = application {
     // 启动提醒引擎
     LaunchedEffect(Unit) {
         reminderEngine.start()
+    }
+
+    // ── 通知弹窗（在 notification 不为 null 时渲染） ──
+    if (notification != null) {
+        NotificationPopup(
+            message = notification!!.first,
+            mode = notification!!.second,
+            visible = notification != null,
+            onDismiss = { notification = null },
+        )
     }
 
     Window(

@@ -5,8 +5,9 @@ import java.awt.*
 import java.awt.image.BufferedImage
 
 /**
- * 系统托盘通知封装。
- * 初始化托盘图标、气泡通知、右键菜单，图标颜色随模式变化。
+ * 系统托盘封装。
+ * 管理托盘图标和右键菜单，图标颜色随模式变化。
+ * 通知弹窗由 NotificationPopup 负责，不再使用原生气泡。
  */
 class Notifier(
     private val onShowWindow: () -> Unit,
@@ -46,12 +47,6 @@ class Notifier(
         } catch (e: Exception) {
             println("[Notifier] ⚠️ 托盘初始化失败: ${e.message}")
         }
-    }
-
-    /** 弹出托盘气泡通知 */
-    fun show(title: String, message: String) {
-        trayIcon?.displayMessage(title, message, TrayIcon.MessageType.INFO)
-        println("[Notifier] 📢 $title: $message")
     }
 
     /** 根据模式切换托盘图标颜色 */

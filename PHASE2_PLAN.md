@@ -61,7 +61,7 @@
 
 ---
 
-#### 2.1.2 自定义提醒弹窗
+#### ✅ 2.1.2 自定义提醒弹窗 【已完成】
 
 **目标**：用 Compose 自定义弹窗替代 Windows 原生 `TrayIcon.displayMessage()`。
 
@@ -147,11 +147,11 @@ fun NotificationPopup(
 
 ---
 
-##### 步骤 D：清理旧代码
+##### 步骤 D：清理旧代码 ✅
 
 **操作**：
-- 删除 `Notifier.show()` 中的 `trayIcon.displayMessage()` 调用
-- `notifier.show()` 保留但改为通过回调触发通知弹窗状态
+- 删除 `Notifier.show()` 方法（`trayIcon.displayMessage()` 调用）
+- `Notifier` 现在只负责托盘图标管理
 
 **验证**：编译通过，无未使用的 import
 
