@@ -2,45 +2,52 @@ package org.example.flow.setup
 
 import java.io.File
 import java.nio.file.Files
-import java.nio.file.Path
 
 /**
  * 浏览器扩展安装器。
- * 将扩展文件从内嵌内容写入磁盘，并引导用户在 Chrome 中加载。
+ * 将扩展文件从内嵌内容写入用户目录（%USERPROFILE%/.flow/extension），
+ * 避免 Program Files 的写入权限问题。
  */
 object ExtensionInstaller {
 
     private const val EXTENSION_DIR = "extension"
 
-    /** 扩展安装的目标路径（默认在应用同级目录） */
-    fun getInstallDir(): File {
-        // 尝试几个可能的位置
-        val candidates = listOf(
-            File(System.getProperty("user.dir"), EXTENSION_DIR),
-            File(System.getProperty("compose.application.resources.dir") ?: ".", EXTENSION_DIR),
-            File(".").absoluteFile.resolve(EXTENSION_DIR),
-        )
-        return candidates.firstOrNull { it.exists() } ?: candidates.first()
+    /** 用户目录下的扩展路径（始终可写） */
+    private val userExtensionDir: File by lazy {
+        File(System.getProperty("user.home"), ".flow/$EXTENSION_DIR")
     }
 
-    /** 确保扩展文件已安装到磁盘，返回安装目录 */
+    /** 获取扩展安装目录 */
+    fun getInstallDir(): File {
+        // 优先返回用户目录路径
+        if (userExtensionDir.exists()) return userExtensionDir
+        // 回退：检查当前目录
+        val fallback = File(System.getProperty("user.dir"), EXTENSION_DIR)
+        return if (fallback.exists()) fallback else userExtensionDir
+    }
+
+    /** 确保扩展文件已安装到磁盘，返回安装目录。失败时返回目录路径但不抛异常 */
     fun ensureInstalled(): File {
-        val dir = File(System.getProperty("user.dir"), EXTENSION_DIR)
-        if (!dir.exists()) {
-            dir.mkdirs()
-            Files.writeString(dir.toPath().resolve("manifest.json"), MANIFEST_JSON)
-            Files.writeString(dir.toPath().resolve("background.js"), BACKGROUND_JS)
-            println("[ExtensionInstaller] ✅ 扩展已写入: ${dir.absolutePath}")
-        } else {
-            println("[ExtensionInstaller] ✅ 扩展已存在: ${dir.absolutePath}")
+        try {
+            if (!userExtensionDir.exists()) {
+                userExtensionDir.mkdirs()
+            }
+            // 总是重写文件，确保内容是最新的
+            Files.writeString(userExtensionDir.toPath().resolve("manifest.json"), MANIFEST_JSON)
+            Files.writeString(userExtensionDir.toPath().resolve("background.js"), BACKGROUND_JS)
+            println("[ExtensionInstaller] ✅ 扩展已写入: ${userExtensionDir.absolutePath}")
+        } catch (e: Exception) {
+            println("[ExtensionInstaller] ⚠️ 扩展写入失败: ${e.message}")
+            // 即使写入失败也返回路径，用户可手动创建
         }
-        return dir
+        return userExtensionDir
     }
 
     /** 是否已安装 */
     fun isInstalled(): Boolean {
-        val dir = File(System.getProperty("user.dir"), EXTENSION_DIR)
-        return dir.exists() && dir.resolve("manifest.json").exists() && dir.resolve("background.js").exists()
+        return userExtensionDir.exists()
+            && userExtensionDir.resolve("manifest.json").exists()
+            && userExtensionDir.resolve("background.js").exists()
     }
 
     // ══════════════════════════════════════════════════
@@ -52,7 +59,7 @@ object ExtensionInstaller {
   "manifest_version": 3,
   "name": "Flow Monitor",
   "version": "0.1.0",
-  "description": "将浏览器标签页信息发送给 Flow 桌面应用，用于工作/娱乐模式判断",
+  "description": "将浏览器标签页信息发送给 Flow 桌面应用",
   "permissions": ["tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -62,8 +69,7 @@ object ExtensionInstaller {
 """.trimIndent()
 
     private val BACKGROUND_JS = """
-// ── Flow Monitor - Chrome Extension Service Worker ──
-// 监听标签页变化，通过 WebSocket 将当前页面信息发送给桌面应用。
+// ── Flow Monitor - Chrome Extension ──
 
 const WS_URL = 'ws://localhost:9527';
 let ws = null;
@@ -72,60 +78,46 @@ function connectWebSocket() {
   try {
     ws = new WebSocket(WS_URL);
     ws.onopen = () => {
-      console.log('[Flow] ✅ WebSocket 已连接到桌面应用');
+      console.log('[Flow] ✅ 已连接');
       sendCurrentTab();
     };
     ws.onclose = () => {
-      console.log('[Flow] 🔌 WebSocket 断开，3 秒后重连...');
+      console.log('[Flow] 🔌 断开，3秒后重连...');
       setTimeout(connectWebSocket, 3000);
     };
     ws.onerror = () => {};
   } catch (e) {
-    console.warn('[Flow] WebSocket 创建失败:', e.message);
     setTimeout(connectWebSocket, 3000);
   }
 }
 
-function sendToServer(message) {
+function sendToServer(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(message));
-    console.log('[Flow] 📤 已发送:', message.domain, message.title);
+    ws.send(JSON.stringify(msg));
   }
 }
 
 function formatMessage(tab) {
   let domain = '';
-  try { if (tab.url) domain = new URL(tab.url).hostname; } catch (_) { domain = tab.url || ''; }
-  return { type: 'tab_change', url: tab.url || '', title: tab.title || '', domain: domain };
+  try { if (tab.url) domain = new URL(tab.url).hostname; } catch (_) {}
+  return { type: 'tab_change', url: tab.url || '', title: tab.title || '', domain };
 }
 
 function sendCurrentTab() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs.length > 0) {
-      const msg = formatMessage(tabs[0]);
-      console.log('[Flow] 📋 当前标签页:', msg.domain, msg.title);
-      sendToServer(msg);
-    }
+    if (tabs.length > 0) sendToServer(formatMessage(tabs[0]));
   });
 }
 
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  chrome.tabs.get(activeInfo.tabId, (tab) => {
-    const msg = formatMessage(tab);
-    console.log('[Flow] 🔄 标签页切换:', msg.domain, msg.title);
-    sendToServer(msg);
-  });
+chrome.tabs.onActivated.addListener((info) => {
+  chrome.tabs.get(info.tabId, (tab) => sendToServer(formatMessage(tab)));
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.url || changeInfo.title) {
-    const msg = formatMessage(tab);
-    console.log('[Flow] 📝 页面更新:', msg.domain, msg.title);
-    sendToServer(msg);
-  }
+  if (changeInfo.url || changeInfo.title) sendToServer(formatMessage(tab));
 });
 
-console.log('[Flow] 🚀 Flow Monitor 扩展已启动');
+console.log('[Flow] 🚀 扩展已启动');
 connectWebSocket();
 """.trimIndent()
 }

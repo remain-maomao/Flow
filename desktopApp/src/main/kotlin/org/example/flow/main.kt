@@ -10,7 +10,6 @@ import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
 import org.example.flow.setup.ExtensionInstaller
 import org.example.flow.ui.FlowApp
-import java.io.File
 
 fun main() = application {
     var isVisible by remember { mutableStateOf(true) }
@@ -31,10 +30,13 @@ fun main() = application {
 
     val tabServer = remember { TabServer() }
 
-    // 启动时自动释放扩展文件到磁盘
-    val extensionDir = remember { ExtensionInstaller.ensureInstalled() }
+    // 扩展目录（使用用户目录，确保可写）
+    val extensionDir = remember { ExtensionInstaller.getInstallDir() }
+
+    // 异步初始化：扩展安装先于服务启动，失败不崩溃
     LaunchedEffect(Unit) {
-        println("[main] 扩展已安装到: ${extensionDir.absolutePath}")
+        ExtensionInstaller.ensureInstalled()
+        println("[main] 扩展目录: ${extensionDir.absolutePath}")
     }
 
     // 启动 WebSocket 服务端
