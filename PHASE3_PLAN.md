@@ -30,26 +30,69 @@
 
 ---
 
-### Phase 3.2：UI 重构（P1）
+### ✅ Phase 3.2：UI 重构（P1）【已完成】
+
+| 子任务 | 状态 |
+|--------|------|
+| 3.2.1 Tab 导航 | ✅ |
 
 #### 3.2.1 Tab 式导航
 
-**问题**：设置面板嵌入首页，占用大量空间，且与首页信息混杂。
+**目标**：首页和设置分成两个 Tab，各自独立显示。
 
-**方案**：
-- 顶部新增 Tab 栏：「Dashboard」/「Settings」
-- Dashboard 显示：模式条 + 计时 + 窗口监测 + 浏览器 + 扩展引导
-- Settings 显示：黑名单编辑面板
-- 开发者模式下的倍速滑块和手动触发按钮放在 Dashboard 底部
+**子步骤**：
 
-**产出**：
-- 重构 `ui/App.kt`，提取 Dashboard 和 Settings 为独立 Composable
-- 新增 `ui/DashboardPanel.kt`
+##### 步骤 A：创建 Tab 状态 + TabRow UI
+
+**修改文件**：`ui/App.kt`
+
+**操作**：
+- 新增 `var selectedTab by remember { mutableStateOf(0) }`（0=Dashboard, 1=Settings）
+- 在标题下方添加 `TabRow`：两个 Tab 项「Dashboard」「Settings」
+- `TabRow` 使用 Material3 组件
+
+**验证**：编译通过，UI 出现两个 Tab 标签
+
+---
+
+##### 步骤 B：提取 Dashboard 为独立 Composable
+
+**新建文件**：`ui/DashboardPanel.kt`
+
+**操作**：
+- 将 App.kt 中现有的模式条、计时状态、桌面窗口、浏览器标签页、扩展引导、倍速滑块、手动触发按钮全部移到 `DashboardPanel`
+- `DashboardPanel` 接收参数：`activeWindow`, `browserMessage`, `currentMode`, `elapsedVirtualMs`, `nextReminderVirtualMs`, `timeScale`, `developerMode`, `showSetupGuide`, `extensionDir`, 以及回调函数
+- 顶部标题 "Flow" + 7连击逻辑保留在 App.kt（Tab 切换不清除状态）
+
+**验证**：编译通过，Dashboard 内容完整
+
+---
+
+##### 步骤 C：Tab 切换显示对应面板
+
+**修改文件**：`ui/App.kt`
+
+**操作**：
+- 删除原嵌入的 SettingsPanel 和所有 Dashboard 内容
+- 改为 `when(selectedTab) { 0 -> DashboardPanel(...); 1 -> SettingsPanel(...) }`
+- TabRow 放在标题下方、内容上方
 
 **验证**：
-- 点击 Tab 切换，Dashboard 和 Settings 各自独立显示
-- 设置面板不再挤占 Dashboard 空间
-- 两个 Tab 内容各自可滚动
+1. 启动默认显示 Dashboard Tab
+2. 点击 Settings Tab → 切换到黑名单编辑
+3. 点回 Dashboard Tab → 切换回首页
+
+---
+
+##### 步骤 D：每个 Tab 内容独立可滚动
+
+**修改文件**：`ui/DashboardPanel.kt`、`ui/SettingsPanel.kt`
+
+**操作**：
+- DashboardPanel 的 Column 添加 `verticalScroll`
+- SettingsPanel 已有 `verticalScroll`，确认正常
+
+**验证**：两个 Tab 各自可独立滚动，互不影响
 
 ---
 
