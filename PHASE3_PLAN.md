@@ -254,34 +254,112 @@
 
 ---
 
-### Phase 3.4：表情包弹窗（P2）
+### 🔜 Phase 3.4：表情包弹窗（P2）【进行中】
 
 #### 3.4.1 自定义表情包通知
 
-**问题**：当前通知弹窗是深灰实心卡片，不够有趣。
+**目标**：用户指定表情包文件夹路径，每次提醒时随机选一张图片展示。透明背景，像微信表情。
 
-**方案**：
-- 用户指定一个表情包文件夹路径（存在 config.json）
-- 每次提醒触发时，随机选取文件夹中的一张图片
-- 弹窗改为透明背景，只显示表情包 + 文字
-- 位置：右下角，比当前稍大
-- 生命周期：弹出 → 停留 3 秒 → 缩小消失
+**设计决策**：
+- 默认路径：`%USERPROFILE%/.flow/emojis/`
+- 文件格式：JFIF / JPEG / PNG，静态图（动态图 MVP 不做）
+- 没有图片或不设置路径 → 回退到纯文字模式
+- 弹窗改为透明背景：只显示图片 + 文字
 
-**技术要点**：
-- 透明窗口已在 NotificationPopup 实现（`transparent = true`）
-- 图片加载：`ImageIO.read()` + Skia 转 BitmapPainter
-- 随机选择：`folder.listFiles()?.filter { it.endsWith(".png") || ... }?.random()`
+**子步骤**：
 
-**产出**：
-- 更新 `notify/NotificationPopup.kt` — 支持图片模式
-- 更新 `classify/ConfigManager.kt` — 加 `emojiFolder` 字段
-- 更新 `ui/SettingsPanel.kt` — 加文件夹选择
+##### 步骤 1：AppConfig 加 emojiFolder 字段
 
-**验证**：
-| 操作 | 预期 |
+**修改文件**：`classify/ConfigManager.kt`
+
+**操作**：
+- `AppConfig` 新增 `val emojiFolder: String = ""`（空字符串表示未设置，回退文字模式）
+
+**验收**：编译通过
+
+---
+
+##### 步骤 2：SettingsPanel 加 emoji folder 输入框
+
+**修改文件**：`ui/SettingsPanel.kt`
+
+**操作**：
+- 在底部（恢复默认按钮上方）新增一行：
+  - 标签 "Emoji Folder"
+  - 输入框显示当前路径
+  - 「Open」按钮 → 打开资源管理器选文件夹
+  - 「Clear」按钮 → 清空（回退文字模式）
+- 自动保存（与域名、应用一致的逻辑）
+
+**验收**：编译通过，Settings Tab 可见 emoji 设置
+
+---
+
+##### 步骤 3：创建 EmojiPicker 工具类
+
+**新建文件**：`notify/EmojiPicker.kt`
+
+**操作**：
+```kotlin
+object EmojiPicker {
+    fun pick(folderPath: String): ImageBitmap? {
+        // 1. 如果路径为空，返回 null
+        // 2. 列出文件夹中 .jpg .jpeg .png .jfif 文件
+        // 3. 随机选一个
+        // 4. 用 Skia 加载为 ImageBitmap
+        // 5. 加载失败 → 返回 null
+    }
+}
+```
+
+**验收**：编译通过
+
+---
+
+##### 步骤 4：重构 NotificationPopup 支持图片模式
+
+**修改文件**：`notify/NotificationPopup.kt`
+
+**操作**：
+- 新增参数 `image: ImageBitmap?`
+- 有图片时：
+  - 透明背景（去掉深灰 Card）
+  - 图片缩放至合适大小（max 96x96dp，保持比例）
+  - 文字放在图片下方，白色带阴影
+- 无图片时：
+  - 保持现有深灰卡片样式（降级）
+
+**验收**：编译通过
+
+---
+
+##### 步骤 5：main.kt 中集成 EmojiPicker
+
+**修改文件**：`main.kt`
+
+**操作**：
+- `onReminder` 回调中：
+  1. 从 ConfigManager 读取 `emojiFolder`
+  2. 调用 `EmojiPicker.pick(emojiFolder)`
+  3. 通知状态从 `Pair<String, Mode>` 改为包含 `ImageBitmap?` 的结构
+- 将 image 传给 `NotificationPopup`
+
+**注意避免 State 捕获陷阱**：通知状态用 `State` 传递
+
+**验收**：编译通过
+
+---
+
+##### 步骤 6：端到端测试
+
+**操作**：
+| 场景 | 预期 |
 |------|------|
-| 设置表情包文件夹 | 下次提醒时弹窗含随机表情 |
-| 不设置文件夹 | 回退到纯文字模式（当前行为） |
+| 默认（没有表情包） | 弹窗显示纯文字，深灰卡片 |
+| 放入 emoji 文件到 `~/.flow/emojis/` | 每次提醒随机展示不同图片 + 文字，透明背景 |
+| 清空 emoji folder 设置 | 回退纯文字模式 |
+
+**验收**：`./gradlew :desktopApp:run` → 手动触发提醒 → 弹窗含随机表情
 
 ---
 
