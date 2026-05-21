@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -42,6 +43,8 @@ fun FlowApp(
     var browserMessage by remember {
         mutableStateOf<BrowserMessage?>(null)
     }
+    // 是否已确认扩展连接（3 秒内有消息就标记为已连接，避免引导卡片闪烁）
+    var extensionConnected by remember { mutableStateOf(false) }
     var currentMode by remember { mutableStateOf(Mode.WORK) }
 
     // ── 倍速滑块状态 ──
@@ -64,6 +67,16 @@ fun FlowApp(
     LaunchedEffect(Unit) {
         tabServer.messages.collectLatest { msg ->
             browserMessage = msg
+            extensionConnected = true  // 收到消息即确认扩展已连
+        }
+    }
+
+    // ── 3 秒延迟后若仍无扩展消息，显示引导 ──
+    var showSetupGuide by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(3_000)
+        if (!extensionConnected) {
+            showSetupGuide = true
         }
     }
 
@@ -152,8 +165,8 @@ fun FlowApp(
                 }
             }
 
-            // ── 扩展安装引导（仅在扩展未连接时显示） ──
-            if (browserMessage == null) {
+            // ── 扩展安装引导（3 秒延迟后仍未连接时显示） ──
+            if (showSetupGuide) {
                 ExtensionSetupGuide(extensionDir)
             }
 
