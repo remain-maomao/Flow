@@ -17,20 +17,24 @@ object IconGenerator {
     private const val RADIUS = 48f
 
     fun generateIfMissing() {
-        val dir = File("desktopApp/src/main/resources")
+        // 查找项目根目录（向上一级找到包含 gradlew 的目录）
+        var dir = File(".")
+        while (!File(dir, "gradlew").exists() && dir.parentFile != null) {
+            dir = dir.parentFile
+        }
+        dir = File(dir, "desktopApp/src/main/composeResources/drawable")
         val userIcon = File(dir, "flow.png")
-        val fallback = File(dir, "icon.png")
 
         // 用户自定义图标优先，不覆盖
-        if (userIcon.exists() || fallback.exists()) {
+        if (userIcon.exists()) {
             println("[IconGenerator] Icon already exists, skip generation")
             return
         }
         dir.mkdirs()
         try {
             val image = generate()
-            ImageIO.write(image, "PNG", fallback)
-            println("[IconGenerator] Icon generated: ${fallback.absolutePath}")
+            ImageIO.write(image, "PNG", userIcon)
+            println("[IconGenerator] Icon generated: ${userIcon.absolutePath}")
         } catch (e: Exception) {
             println("[IconGenerator] Failed: ${e.message}")
         }
