@@ -638,3 +638,54 @@ fun updateTimeScale(newScale: Long) {
 ---
 
 **验收通过标准**：T1~T14 全部 √，I1~I2 已记录。
+
+---
+
+## 第八步之后：打包与发布（已完成）
+
+### 🔧 Windows MSI 打包
+
+**产出**：`desktopApp/build/compose/binaries/main/msi/Flow-0.1.0.msi` (64 MB)
+
+**配置**：
+- `targetFormats(TargetFormat.Msi)` — 仅 Windows
+- `packageName = "Flow"`, `vendor = "Flow"`
+- `jvmArgs += "-Dfile.encoding=UTF-8"` — 编码设置
+
+**构建命令**：`./gradlew :desktopApp:packageMsi`
+
+---
+
+### 🔧 扩展自动安装
+
+**问题**：MSI 安装后无窗口，托盘菜单无响应。
+
+**根因**：`ExtensionInstaller` 写入 `C:\Program Files\Flow\extension\` 因权限不足崩溃，导致 Compose 组合中断，Window 未创建。
+
+**修复**：
+- 目标目录改为 `%USERPROFILE%\.flow\extension\`（始终可写）
+- `ensureInstalled()` 从同步 `remember{}` 改为异步 `LaunchedEffect`
+- 文件写入加 `try-catch`，失败不崩溃
+
+**产出**：`setup/ExtensionInstaller.kt`
+
+---
+
+### 🔧 扩展安装引导优化
+
+**问题**：已装扩展的用户每次启动都会闪过橙色引导卡片（~200ms）。
+
+**修复**：3 秒延迟逻辑——3 秒内扩展连上则不显示引导，超时才显示。
+
+**改动**：`ui/App.kt` 中 `showSetupGuide` 状态 + `delay(3000)` 判断
+
+---
+
+### 🔧 已知编码/字体问题
+
+| # | 问题 | 原因 | 状态 |
+|---|------|------|------|
+| I1 | 控制台中文乱码 | JVM file.encoding 与终端编码不匹配 | 🟡 已尝试修复，未生效 |
+| I2 | 托盘菜单中文方块 | AWT 系统托盘使用原生菜单，setFont 可能无效 | 🟡 已尝试修复，未生效 |
+
+详细记录见 `ISSUES.md`。
