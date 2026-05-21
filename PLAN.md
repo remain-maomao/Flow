@@ -237,16 +237,80 @@ connectWebSocket();
 
 ---
 
-### 第四步：WebSocket 服务端
+### ✅ 第四步：WebSocket 服务端 【已完成】
 
-**目标**：桌面端启动 WebSocket Server，接收浏览器扩展消息并解析。
+**目标**：桌面端启动 WebSocket Server 监听 `localhost:9527`，接收浏览器扩展发来的 JSON → 反序列化为 Kotlin 数据类 → 和 WindowMonitor 合并为统一窗口流 → UI 同时展示两端数据。
 
-**关键任务**：
-- Java-WebSocket Server 启动
-- 消息反序列化（JSON → ActiveWindow）
-- 与 WindowMonitor 流合并
+---
 
-**验证方式**：打开浏览器扩展后，桌面 UI 显示从扩展收到的 URL。
+#### 4.1 创建 `BrowserMessage` 数据类
+
+**产出文件**：`desktopApp/src/main/kotlin/org/example/flow/model/BrowserMessage.kt`
+
+**字段一一对应扩展发来的 JSON**：
+```kotlin
+@Serializable
+data class BrowserMessage(
+    val type: String,    // "tab_change"
+    val url: String,
+    val title: String,
+    val domain: String,
+)
+```
+
+**验证**：`./gradlew :desktopApp:compileKotlin` 通过
+
+---
+
+#### 4.2 编写 `TabServer` — WebSocket 服务端
+
+**产出文件**：`desktopApp/src/main/kotlin/org/example/flow/server/TabServer.kt`
+
+**具体逻辑（逐行可写）**：
+1. 继承 `org.java_websocket.server.WebSocketServer(InetSocketAddress(9527))`
+2. 持有 `private val _messages = MutableSharedFlow<BrowserMessage>(extraBufferCapacity = 8)`
+3. 暴露 `val messages: SharedFlow<BrowserMessage> = _messages`
+4. `onOpen()` → 打印日志 `"浏览器已连接"`
+5. `onMessage(conn, message: String)` → `Json.decodeFromString<BrowserMessage>(message)` → `_messages.tryEmit(msg)`
+6. `onClose()` → 打印日志 `"浏览器已断开"`
+7. `onError()` → 打印异常
+8. `fun start()` → 调用 `super.start()`，包裹 try-catch（端口占用时打印警告）
+
+**关键 import**：
+- `org.java_websocket.server.WebSocketServer`
+- `org.java_websocket.WebSocket`
+- `org.java_websocket.handshake.ClientHandshake`
+- `kotlinx.serialization.json.Json`
+
+**验证**：`./gradlew :desktopApp:compileKotlin` 通过
+
+---
+
+#### 4.3 整合：main.kt 启动服务 + UI 合并双源显示
+
+**修改文件**：
+- `main.kt`：在 `application {}` 内启动 `TabServer`
+- `ui/App.kt`：同时显示桌面窗口 + 浏览器标签页信息
+
+**main.kt 新增逻辑**：
+```kotlin
+val tabServer = remember { TabServer() }
+LaunchedEffect(Unit) { tabServer.start() }
+```
+
+**ui/App.kt 新增逻辑**：
+- 新增 `browserMessage` 状态，通过参数接收 TabServer 的 SharedFlow 或在 FlowApp 内部收集
+- UI 分为两栏：左侧「桌面窗口」、右侧「浏览器标签页」
+- 桌面窗口信息来源：`WindowMonitor.observeActiveWindow()`（已有）
+- 浏览器信息来来源：`TabServer.messages`（新增）
+
+**验收标准（手动操作）**：
+1. `./gradlew :desktopApp:run` 启动桌面应用
+2. Chrome 扩展的 Service Worker Console 显示 `[Flow] ✅ WebSocket 已连接到桌面应用`
+3. 桌面 UI 右侧「浏览器标签页」区域显示：域名 + 页面标题
+4. 切换浏览器标签页 → 桌面 UI 同步更新
+5. 关闭浏览器 → 桌面 UI 显示「浏览器已断开」
+6. 重新打开浏览器 → 自动重连，UI 恢复
 
 ---
 
