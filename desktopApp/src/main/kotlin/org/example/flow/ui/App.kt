@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.State
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,7 +33,7 @@ fun FlowApp(
     reminderEngine: ReminderEngine,
     notifier: Notifier,
     extensionDir: File,
-    extensionConnected: Boolean,
+    extensionConnected: State<Boolean>,
 ) {
     var activeWindow by remember { mutableStateOf(ActiveWindow("(waiting...)", "(waiting...)", 0L)) }
     var browserMessage by remember { mutableStateOf<BrowserMessage?>(null) }
@@ -74,7 +75,7 @@ fun FlowApp(
     var showSetupGuide by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(3_000)
-        if (!extensionConnected) showSetupGuide = true
+        if (!extensionConnected.value) showSetupGuide = true
     }
 
     // ── Classification flow (single entry point, no merge) ──
@@ -89,7 +90,7 @@ fun FlowApp(
             val isBrowser = window.processName.lowercase() in browserProcesses
 
             val browserMsg = latestBrowserMessage
-            val result = if (isBrowser && extensionConnected && browserMsg != null) {
+            val result = if (isBrowser && extensionConnected.value && browserMsg != null) {
                 ModeClassifier.classifyBrowser(browserMsg)
             } else {
                 ModeClassifier.classifyWindow(window)

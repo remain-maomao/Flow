@@ -19,7 +19,8 @@ import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
     var isVisible by remember { mutableStateOf(true) }
-    var extensionConnected by remember { mutableStateOf(false) }
+    val extensionConnectedState = remember { mutableStateOf(false) }
+    var extensionConnected by extensionConnectedState
 
     val notifier = remember {
         Notifier(
@@ -99,7 +100,7 @@ fun main() = application {
             reminderEngine = reminderEngine,
             notifier = notifier,
             extensionDir = extensionDir,
-            extensionConnected = extensionConnected,
+            extensionConnected = extensionConnectedState,
         )
     }
 }
