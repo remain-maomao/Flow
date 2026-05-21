@@ -157,30 +157,73 @@ fun NotificationPopup(
 
 ---
 
-### Phase 2.2：可用性增强（P1）
+### 🔜 Phase 2.2：可用性增强（P1）【进行中】
 
-#### 2.2.1 娱乐黑名单可配置
+#### ✅ 2.2.1 娱乐黑名单可配置 【已完成】
 
-**目标**：用户可在 UI 中添加/删除自己的娱乐域名和应用关键词。
+**目标**：用户可在 UI 中添加/删除娱乐域名和标题关键词，持久化到 JSON 文件。
 
-**方案**：
-- 存储：`%USERPROFILE%\.flow\config.json`
-- 数据结构：
-  ```json
-  {
-    "entertainmentDomains": ["bilibili.com", "youtube.com", ...],
-    "entertainmentApps": ["steam", "原神", ...]
-  }
-  ```
-- UI：设置面板中显示列表 + 添加/删除按钮
-- 首次启动时写入默认值，用户可修改
+**子步骤**：
+
+##### 步骤 A：创建 `ConfigManager` — 读写 config.json
+
+**产出文件**：`classify/ConfigManager.kt`
+
+**具体逻辑**：
+- 文件路径：`%USERPROFILE%/.flow/config.json`
+- 数据结构：`data class AppConfig(entertainmentDomains: List<String>, entertainmentApps: List<String>)`
+- 使用 `kotlinx.serialization` 读写 JSON
+- `fun load(): AppConfig` → 不存在则返回默认值并写入文件
+- `fun save(config: AppConfig)` → 写入文件
+- 默认值：当前硬编码的 17 个域名 + 13 个关键词
+
+**验证**：编译通过，启动后 `%USERPROFILE%/.flow/config.json` 自动生成
+
+---
+
+##### 步骤 B：`ModeClassifier` 改为从 ConfigManager 读取
+
+**修改文件**：`classify/ModeClassifier.kt`
+
+**具体变更**：
+- 删除硬编码的 `entertainmentDomains` 和 `entertainmentTitleKeywords`
+- 改为从 `ConfigManager.load()` 读取
+- 提供 `reload()` 方法在配置变更后刷新
+
+**验证**：编译通过，功能与硬编码时一致
+
+---
+
+##### 步骤 C：创建设置面板 UI
+
+**产出文件**：`ui/SettingsPanel.kt`
+
+**具体逻辑**：
+- 两个 Tab 或两个列表：域名 / 应用关键词
+- 每项有删除按钮 (X)
+- 底部有「添加」输入框 + 按钮
+- 「保存」按钮写回 config.json 并调用 `ModeClassifier.reload()`
+
+**验证**：编译通过，UI 显示当前黑名单
+
+---
+
+##### 步骤 D：集成到主 UI
+
+**修改文件**：`ui/App.kt`
+
+**具体变更**：
+- 新增「⚙ 设置」按钮
+- 点击后切换显示 SettingsPanel
+- 或者做成独立弹窗
 
 **验收标准**：
-| # | 场景 | 预期 |
+| # | 操作 | 预期 |
 |---|------|------|
-| 1 | 打开设置 | 显示当前黑名单列表 |
-| 2 | 添加 `example.com` | 再次访问时识别为娱乐模式 |
-| 3 | 删除 `bilibili.com` | B 站不再触发娱乐模式 |
+| 1 | 点击设置按钮 | 显示黑名单列表 |
+| 2 | 添加域名 `example.com` | 列表中出现新项 |
+| 3 | 保存 | 访问 `example.com` 识别为娱乐模式 |
+| 4 | 关闭重开 | 配置依然存在 |
 
 ---
 

@@ -49,6 +49,8 @@ fun FlowApp(
 
     // ── 倍速滑块状态 ──
     var timeScale by remember { mutableStateOf(60L) }
+    // ── 设置面板状态 ──
+    var showSettings by remember { mutableStateOf(false) }
 
     // ── UI 状态（从 ReminderEngine 收集） ──
     val elapsedVirtualMs by reminderEngine.elapsedVirtualMs.collectAsState()
@@ -170,6 +172,11 @@ fun FlowApp(
                 ExtensionSetupGuide(extensionDir)
             }
 
+            // ── 设置面板（可折叠） ──
+            if (showSettings) {
+                SettingsPanel(onClose = { showSettings = false })
+            }
+
             // ── 时间倍速滑块 ──
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -202,6 +209,9 @@ fun FlowApp(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                OutlinedButton(onClick = { showSettings = !showSettings }) {
+                    Text(if (showSettings) "关闭设置" else "⚙ 设置")
+                }
                 Button(
                     onClick = { reminderEngine.triggerNow() },
                     modifier = Modifier.weight(1f),
