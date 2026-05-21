@@ -37,12 +37,12 @@ class Notifier(
             popup.addSeparator()
             popup.add(exitItem)
 
-            // 加载用户图标（优先 flow.png，回退 icon.png）
+            // 加载应用图标（从 compose 资源）
             val iconImage = try {
-                val userIcon = java.io.File("desktopApp/src/main/resources/flow.png")
-                val fallback = java.io.File("desktopApp/src/main/resources/icon.png")
-                val file = if (userIcon.exists()) userIcon else fallback
-                if (file.exists()) javax.imageio.ImageIO.read(file) else createFallbackIcon()
+                val resource = javaClass.classLoader.getResourceAsStream(
+                    "composeResources/flow.desktopapp.generated.resources/drawable/flow.png"
+                )
+                if (resource != null) javax.imageio.ImageIO.read(resource) else createFallbackIcon()
             } catch (e: Exception) {
                 createFallbackIcon()
             }

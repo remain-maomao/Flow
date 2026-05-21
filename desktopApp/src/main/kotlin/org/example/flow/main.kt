@@ -10,13 +10,12 @@ import org.example.flow.model.Mode
 import org.example.flow.notify.NotificationPopup
 import org.example.flow.notify.Notifier
 import org.example.flow.server.TabServer
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import org.example.flow.setup.ExtensionInstaller
 import org.example.flow.setup.IconGenerator
 import org.example.flow.ui.FlowApp
-import org.jetbrains.skia.Image as SkiaImage
-import java.io.File
+import flow.desktopapp.generated.resources.Res
+import flow.desktopapp.generated.resources.flow
+import org.jetbrains.compose.resources.painterResource
 
 fun main() = application {
     var isVisible by remember { mutableStateOf(true) }
@@ -79,18 +78,8 @@ fun main() = application {
         )
     }
 
-    // ── 加载窗口图标 ──
-    val windowIcon = remember {
-        try {
-            val iconFile = File("desktopApp/src/main/resources/flow.png")
-            if (iconFile.exists()) {
-                val bitmap = SkiaImage.makeFromEncoded(iconFile.readBytes()).toComposeImageBitmap()
-                BitmapPainter(bitmap)
-            } else null
-        } catch (e: Exception) {
-            null
-        }
-    }
+    // ── 窗口图标（从 compose 资源加载） ──
+    val windowIcon = painterResource(Res.drawable.flow)
 
     Window(
         onCloseRequest = { isVisible = false },
