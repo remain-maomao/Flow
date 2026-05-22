@@ -11,6 +11,8 @@ import org.example.flow.model.Mode
 import org.example.flow.notify.EmojiPicker
 import org.example.flow.notify.NotificationPopup
 import org.example.flow.notify.Notifier
+import org.example.flow.notify.SoundPicker
+import org.example.flow.notify.SoundPlayer
 import org.example.flow.server.TabServer
 import org.example.flow.setup.ExtensionInstaller
 import org.example.flow.setup.IconGenerator
@@ -42,11 +44,30 @@ fun main() = application {
         ReminderEngine(
             timeScale = 60L,
             onReminder = { rule ->
+                println("[main] onReminder triggered: message=${rule.message}")
                 val mode = engineHolder[0]?.getCurrentMode() ?: Mode.WORK
                 val config = org.example.flow.classify.ConfigManager.load()
+                println("[main] Config loaded: emojiFolder='${config.emojiFolder}', soundFolder='${config.soundFolder}'")
                 val image = if (config.emojiFolder.isNotBlank()) {
                     EmojiPicker.pick(config.emojiFolder)
-                } else null
+                } else {
+                    println("[main] emojiFolder blank, skipping image")
+                    null
+                }
+                // 音效（与表情包独立，互不影响）
+                val soundFile = if (config.soundFolder.isNotBlank()) {
+                    println("[main] soundFolder configured, calling SoundPicker.pick()")
+                    SoundPicker.pick(config.soundFolder)
+                } else {
+                    println("[main] soundFolder blank, skipping sound")
+                    null
+                }
+                if (soundFile != null) {
+                    println("[main] Sound file picked: ${soundFile.absolutePath}, calling SoundPlayer.play()")
+                    SoundPlayer.play(soundFile)
+                } else {
+                    println("[main] No sound file to play")
+                }
                 notification = NotificationState(rule.message, mode, image)
             },
         ).also { engineHolder[0] = it }

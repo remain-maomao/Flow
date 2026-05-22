@@ -66,6 +66,7 @@ data class AppConfig(
     val entertainmentDomains: List<String> = DEFAULT_DOMAINS,
     val entertainmentApps: List<String> = DEFAULT_APPS,
     val emojiFolder: String = "",
+    val soundFolder: String = "",
     val developerMode: Boolean = false,
 ) {
     companion object {

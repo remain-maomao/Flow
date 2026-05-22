@@ -214,6 +214,35 @@ fun SettingsPanel(onClose: () -> Unit) {
             }
             Spacer(Modifier.height(12.dp))
 
+            // ── Sound Folder ──
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            Text("Sound Folder (for notifications)", style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = config.soundFolder,
+                    onValueChange = { newVal ->
+                        config = config.copy(soundFolder = newVal)
+                        ConfigManager.save(config)
+                    },
+                    placeholder = { Text("e.g. C:\\Users\\remai\\.flow\\sounds") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = {
+                    config = config.copy(soundFolder = "")
+                    ConfigManager.save(config)
+                }) {
+                    Text("Clear")
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
             // ── 恢复默认 ──
             OutlinedButton(
                 onClick = {
